@@ -74,7 +74,7 @@ wss.on('connection', (ws) => {
       saveMessages(messages);
       wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: 'delete', id: msg.id }));
+          client.send(JSON.stringify({ type: 'deleted', id: msg.id }));
         }
       });
     }
