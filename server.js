@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
@@ -49,26 +50,15 @@ function broadcastOnline() {
   broadcast({ type: 'online', count: users.length, users });
 }
 
-// Cloudinary upload
 function uploadToCloudinary(base64Data, callback) {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-  const body = JSON.stringify({
-    file: base64Data,
-    upload_preset: undefined,
-    resource_type: 'video'
-  });
-
   const timestamp = Math.floor(Date.now() / 1000);
-  const crypto = require('crypto');
   const signature = crypto.createHash('sha1')
     .update(`timestamp=${timestamp}${apiSecret}`)
     .digest('hex');
-
   const postData = `file=${encodeURIComponent(base64Data)}&timestamp=${timestamp}&api_key=${apiKey}&signature=${signature}&resource_type=video`;
-
   const options = {
     hostname: 'api.cloudinary.com',
     path: `/v1_1/${cloudName}/video/upload`,
@@ -78,20 +68,17 @@ function uploadToCloudinary(base64Data, callback) {
       'Content-Length': Buffer.byteLength(postData)
     }
   };
-
   const req = https.request(options, (res) => {
     let data = '';
     res.on('data', chunk => data += chunk);
     res.on('end', () => {
       try {
         const result = JSON.parse(data);
-        callback(null, result.secure_url);
-      } catch (e) {
-        callback(e);
-      }
+        if (result.secure_url) callback(null, result.secure_url);
+        else callback(new Error('no url: ' + JSON.stringify(result)));
+      } catch (e) { callback(e); }
     });
   });
-
   req.on('error', callback);
   req.write(postData);
   req.end();
@@ -102,10 +89,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.post('/upload-audio', (req, res) => {
   const { audio, nick } = req.body;
   if (!audio || !nick) return res.status(400).json({ error: 'missing data' });
-
   uploadToCloudinary(audio, (err, url) => {
-    if (err || !url) return res.status(500).json({ error: 'upload failed' });
-
+    if (err || !url) {
+      console.error('Cloudinary error:', err);
+      return res.status(500).json({ error: 'upload failed' });
+    }
     const m = {
       id: Date.now() + '_' + Math.random().toString(36).slice(2),
       nick: nick.slice(0, 30),
@@ -114,7 +102,6 @@ app.post('/upload-audio', (req, res) => {
       time: new Date().toISOString(),
       deleted: false
     };
-
     messages.push(m);
     if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
     saveMessages(messages);
@@ -134,7 +121,7 @@ wss.on('connection', (ws) => {
     if (msg.type === 'join' && msg.nick) {
       clients.set(ws, msg.nick.slice(0, 30));
       broadcastOnline();
-      broadcast({ type: 'system', text: msg.nick.slice(0, 30) + ' odaya katıldı' });
+      broadcast({ type: 'system', text: msg.nick.slice(0, 30) + ' katıldı', kind: 'join' });
     }
 
     if (msg.type === 'chat' && msg.nick && msg.text) {
@@ -167,7 +154,7 @@ wss.on('connection', (ws) => {
     const nick = clients.get(ws);
     clients.delete(ws);
     broadcastOnline();
-    if (nick) broadcast({ type: 'system', text: nick + ' ayrıldı' });
+    if (nick) broadcast({ type: 'system', text: nick + ' ayrıldı', kind: 'leave' });
   });
 });
 
