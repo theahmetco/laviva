@@ -10,83 +10,90 @@ const wss = new WebSocket.Server({ server });
 
 const DB_FILE = path.join(__dirname, 'messages.json');
 const MAX_MESSAGES = 200;
+const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 function loadMessages() {
   try {
-    if (fs.existsSync(DB_FILE)) {
-      return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-    }
+    if (fs.existsSync(DB_FILE)) return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
   } catch (e) {}
   return [];
 }
 
-function saveMessages(messages) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(messages), 'utf8');
+function saveMessages(msgs) {
+  fs.writeFileSync(DB_FILE, JSON.stringify(msgs), 'utf8');
+}
+
+function cleanOldMessages() {
+  const cutoff = Date.now() - MAX_AGE_MS;
+  const before = messages.length;
+  messages = messages.filter(m => new Date(m.time).getTime() > cutoff);
+  if (messages.length !== before) saveMessages(messages);
 }
 
 let messages = loadMessages();
-const onlineUsers = new Map(); // ws -> nick
+cleanOldMessages();
+setInterval(cleanOldMessages, 60 * 60 * 1000);
+
+const clients = new Map();
+
+function broadcast(data) {
+  const str = JSON.stringify(data);
+  wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(str); });
+}
 
 function broadcastOnline() {
-  const users = Array.from(onlineUsers.values());
-  const data = JSON.stringify({ type: 'online', users });
-  wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(data);
-    }
-  });
+  const users = Array.from(clients.values());
+  broadcast({ type: 'online', count: users.length, users });
 }
 
 app.use(express.static(path.join(__dirname, 'public')));
 
 wss.on('connection', (ws) => {
+  cleanOldMessages();
   ws.send(JSON.stringify({ type: 'history', messages }));
 
-  ws.on('message', (data) => {
+  ws.on('message', (raw) => {
     let msg;
-    try { msg = JSON.parse(data); } catch { return; }
+    try { msg = JSON.parse(raw); } catch { return; }
 
-    if (msg.type === 'join') {
-      onlineUsers.set(ws, msg.nick);
+    if (msg.type === 'join' && msg.nick) {
+      clients.set(ws, msg.nick.slice(0, 30));
       broadcastOnline();
+      broadcast({ type: 'system', text: msg.nick.slice(0, 30) + ' odaya katıldı' });
     }
 
     if (msg.type === 'chat' && msg.nick && msg.text) {
-      const message = {
-        id: Date.now() + Math.random().toString(36).slice(2),
+      const m = {
+        id: Date.now() + '_' + Math.random().toString(36).slice(2),
         nick: msg.nick.slice(0, 30),
         text: msg.text.slice(0, 500),
-        time: new Date().toISOString()
+        time: new Date().toISOString(),
+        deleted: false
       };
-      messages.push(message);
+      messages.push(m);
       if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
       saveMessages(messages);
-
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: 'message', message }));
-        }
-      });
+      broadcast({ type: 'message', message: m });
     }
 
     if (msg.type === 'delete' && msg.id) {
-      messages = messages.filter(m => m.id !== msg.id);
-      saveMessages(messages);
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: 'deleted', id: msg.id }));
-        }
-      });
+      const m = messages.find(x => x.id === msg.id);
+      if (m && m.nick === msg.nick) {
+        m.deleted = true;
+        m.text = '';
+        saveMessages(messages);
+        broadcast({ type: 'deleted', id: msg.id });
+      }
     }
   });
 
   ws.on('close', () => {
-    onlineUsers.delete(ws);
+    const nick = clients.get(ws);
+    clients.delete(ws);
     broadcastOnline();
+    if (nick) broadcast({ type: 'system', text: nick + ' ayrıldı' });
   });
 });
 
 const PORT = process.env.PORT || 8080;
-server.listen(PORT, () => {
-  console.log(`Laviva chat running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log('Laviva running on port ' + PORT));
