@@ -26,7 +26,16 @@
     }
     header h1 { font-size: 1.2rem; font-weight: 700; color: #a78bfa; letter-spacing: 1px; }
     #header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-    #online-count { font-size: 0.8rem; color: #a78bfa; font-weight: 600; }
+    #online-count { font-size: 0.8rem; color: #a78bfa; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    #status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #22c55e; display: inline-block;
+      transition: background 0.3s;
+    }
+    #status-dot.yellow { background: #eab308; animation: blink 0.6s infinite; }
+    #status-dot.red { background: #ef4444; animation: none; }
+    #status-dot.green { background: #22c55e; animation: none; }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
     #online-list { font-size: 0.75rem; color: #6b7280; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     #nick-screen {
@@ -35,26 +44,16 @@
     }
     #nick-screen h2 { font-size: 1rem; color: #9ca3af; font-weight: 400; }
     #nick-input, #msg-input {
-      -webkit-appearance: none;
-      appearance: none;
-      border-radius: 10px;
-      border: 1px solid #3a3a50;
-      background: #1e1e2e;
-      color: #fff;
-      font-size: 1rem;
-      outline: none;
-      -webkit-user-select: text;
-      user-select: text;
+      -webkit-appearance: none; appearance: none;
+      border: 1px solid #3a3a50; background: #1e1e2e;
+      color: #fff; font-size: 1rem; outline: none;
+      -webkit-user-select: text; user-select: text;
     }
-    #nick-input {
-      padding: 12px 18px;
-      width: 100%; max-width: 300px;
-    }
+    #nick-input { padding: 12px 18px; border-radius: 10px; width: 100%; max-width: 300px; }
     #nick-btn {
       padding: 12px 32px; border-radius: 10px; border: none;
       background: #7c3aed; color: #fff; font-size: 1rem;
-      cursor: pointer; width: 100%; max-width: 300px;
-      -webkit-appearance: none;
+      cursor: pointer; width: 100%; max-width: 300px; -webkit-appearance: none;
     }
 
     #chat-screen { display: none; flex: 1; flex-direction: column; overflow: hidden; }
@@ -84,21 +83,23 @@
     }
     .msg.mine.show-delete .delete-btn { display: flex; }
     .deleted-text { font-style: italic; color: #6b7280 !important; font-size: 0.85rem; }
+    .system-msg {
+      text-align: center; font-size: 0.75rem; color: #4b5563;
+      padding: 4px 12px; background: #1a1a24; border-radius: 12px;
+      align-self: center;
+    }
 
     #input-area {
       padding: 10px 12px; background: #17171f;
       border-top: 1px solid #2a2a3a; display: flex; gap: 8px; align-items: center;
       flex-shrink: 0;
     }
-    #msg-input {
-      flex: 1; padding: 11px 16px; border-radius: 24px;
-    }
+    #msg-input { flex: 1; padding: 11px 16px; border-radius: 24px; }
     #send-btn {
       width: 44px; height: 44px; border-radius: 50%; border: none;
       background: #7c3aed; color: #fff; font-size: 1.1rem;
       cursor: pointer; display: flex; align-items: center;
-      justify-content: center; flex-shrink: 0;
-      -webkit-appearance: none;
+      justify-content: center; flex-shrink: 0; -webkit-appearance: none;
     }
   </style>
 </head>
@@ -106,7 +107,10 @@
 <header>
   <h1>laviva</h1>
   <div id="header-right">
-    <span id="online-count">🟢 0</span>
+    <span id="online-count">
+      <span id="status-dot" class="yellow"></span>
+      <span id="online-num">0</span>
+    </span>
     <span id="online-list"></span>
   </div>
 </header>
@@ -126,9 +130,9 @@
 </div>
 
 <script>
-  let nick = '';
+  const NICK_KEY = 'laviva_nick';
+  let nick = localStorage.getItem(NICK_KEY) || '';
   let ws;
-  let inputValue = '';
 
   const nickScreen = document.getElementById('nick-screen');
   const chatScreen = document.getElementById('chat-screen');
@@ -137,8 +141,13 @@
   const messagesEl = document.getElementById('messages');
   const msgInput = document.getElementById('msg-input');
   const sendBtn = document.getElementById('send-btn');
-  const onlineCount = document.getElementById('online-count');
+  const onlineNum = document.getElementById('online-num');
   const onlineList = document.getElementById('online-list');
+  const statusDot = document.getElementById('status-dot');
+
+  function setStatus(s) {
+    statusDot.className = s;
+  }
 
   function formatTime(iso) {
     const d = new Date(iso);
@@ -147,6 +156,14 @@
 
   function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function addSystemMsg(text) {
+    const div = document.createElement('div');
+    div.className = 'system-msg';
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
   function addMessage(msg, isMine) {
@@ -184,10 +201,14 @@
   }
 
   function connect() {
+    setStatus('yellow');
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     ws = new WebSocket(`${proto}://${location.host}`);
 
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'join', nick }));
+    ws.onopen = () => {
+      setStatus('green');
+      ws.send(JSON.stringify({ type: 'join', nick }));
+    };
 
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
@@ -209,18 +230,28 @@
           el.classList.remove('show-delete');
         }
       } else if (data.type === 'online') {
-        onlineCount.textContent = '🟢 ' + data.count;
+        onlineNum.textContent = data.count;
         onlineList.textContent = data.users.join(', ');
+      } else if (data.type === 'system') {
+        addSystemMsg(data.text);
       }
     };
 
-    ws.onclose = () => setTimeout(connect, 2000);
+    ws.onclose = () => {
+      setStatus('red');
+      setTimeout(connect, 2000);
+    };
   }
 
   function enterChat() {
     const n = nickInput.value.trim();
     if (!n) return;
     nick = n;
+    localStorage.setItem(NICK_KEY, nick);
+    showChat();
+  }
+
+  function showChat() {
     nickScreen.style.display = 'none';
     chatScreen.style.display = 'flex';
     setTimeout(() => msgInput.focus(), 100);
@@ -238,6 +269,11 @@
   nickInput.addEventListener('keydown', e => { if (e.key === 'Enter') enterChat(); });
   sendBtn.addEventListener('click', sendMessage);
   msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+  // Nick varsa direkt chat'e gir
+  if (nick) {
+    showChat();
+  }
 </script>
 </body>
 </html>
