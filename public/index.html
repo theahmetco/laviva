@@ -68,7 +68,7 @@
       flex: 1; overflow-y: auto; padding: 16px;
       display: flex; flex-direction: column; gap: 6px;
       -webkit-overflow-scrolling: touch;
-      scroll-behavior: smooth;
+      overscroll-behavior: contain;
     }
     .msg { display: flex; flex-direction: column; gap: 2px; max-width: 80%; position: relative; }
     .msg.mine { align-self: flex-end; align-items: flex-end; }
@@ -200,12 +200,17 @@
 
   if (nick) nickInput.value = nick;
 
+  function scrollBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
   function setStatus(s) { statusDot.className = s; }
 
   function showScreen(name) {
     lobbyScreen.style.display = name === 'lobby' ? 'flex' : 'none';
     connectingScreen.style.display = name === 'connecting' ? 'flex' : 'none';
     chatScreen.style.display = name === 'chat' ? 'flex' : 'none';
+    if (name === 'chat') setTimeout(scrollBottom, 100);
   }
 
   function formatTime(iso) {
@@ -224,7 +229,7 @@
     const color = kind === 'join' ? '#86efac' : '#fca5a5';
     div.innerHTML = `<span style="color:#9ca3af">${escapeHtml(nickPart)}</span><span style="color:${color};font-weight:600">${keyword}</span>`;
     messagesEl.appendChild(div);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    scrollBottom();
   }
 
   function addMessage(msg, isMine) {
@@ -240,6 +245,12 @@
       prev.dataset.nick === msg.nick &&
       prev.dataset.time === formatTime(msg.time) &&
       !msg.deleted;
+
+    // Önceki mesajın saatini kaldır, en sona taşıyacağız
+    if (sameGroup) {
+      const prevTime = prev.querySelector('.msg-time');
+      if (prevTime) prevTime.remove();
+    }
 
     let bubbleHtml = '';
     if (msg.deleted) {
@@ -257,7 +268,7 @@
     div.innerHTML = `
       ${sameGroup ? '' : `<span class="msg-nick">${escapeHtml(msg.nick)}</span>`}
       ${bubbleHtml}
-      ${sameGroup ? '' : `<span class="msg-time">${formatTime(msg.time)}</span>`}
+      <span class="msg-time">${formatTime(msg.time)}</span>
       ${isMine && !msg.deleted ? `<button class="delete-btn">✕</button>` : ''}
     `;
 
@@ -265,8 +276,7 @@
     if (playBtn) {
       playBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const audio = new Audio(playBtn.dataset.url);
-        audio.play().catch(() => {});
+        new Audio(playBtn.dataset.url).play().catch(() => {});
       });
     }
 
@@ -283,7 +293,7 @@
     }
 
     messagesEl.appendChild(div);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    scrollBottom();
   }
 
   async function toggleRecording() {
@@ -352,7 +362,7 @@
       setStatus('green');
       ws.send(JSON.stringify({ type: 'join', nick }));
       showScreen('chat');
-      setTimeout(() => msgInput.focus(), 100);
+      setTimeout(() => msgInput.focus(), 300);
     };
 
     ws.onmessage = (e) => {
@@ -365,12 +375,12 @@
       } else if (data.type === 'deleted') {
         const el = document.querySelector(`[data-id="${data.id}"]`);
         if (el) {
-          const n = el.querySelector('.msg-nick') ? el.querySelector('.msg-nick').textContent : '';
-          const t = el.querySelector('.msg-time') ? el.querySelector('.msg-time').textContent : '';
+          const n = el.querySelector('.msg-nick');
+          const t = el.querySelector('.msg-time');
           el.innerHTML = `
-            ${n ? `<span class="msg-nick">${escapeHtml(n)}</span>` : ''}
+            ${n ? `<span class="msg-nick">${escapeHtml(n.textContent)}</span>` : ''}
             <div class="msg-bubble deleted-text">Bu mesaj silindi</div>
-            ${t ? `<span class="msg-time">${t}</span>` : ''}
+            ${t ? `<span class="msg-time">${t.textContent}</span>` : ''}
           `;
           el.classList.remove('show-delete');
         }
@@ -402,6 +412,7 @@
     if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'chat', nick, text }));
     msgInput.value = '';
+    msgInput.focus();
   }
 
   micBtn.addEventListener('click', toggleRecording);
@@ -409,6 +420,12 @@
   nickInput.addEventListener('keydown', e => { if (e.key === 'Enter') enterChat(); });
   sendBtn.addEventListener('click', sendMessage);
   msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      setTimeout(scrollBottom, 100);
+    });
+  }
 
   showScreen('lobby');
   connectLobby();
