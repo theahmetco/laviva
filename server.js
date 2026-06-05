@@ -124,6 +124,14 @@ wss.on('connection', (ws) => {
       broadcast({ type: 'system', text: msg.nick.slice(0, 30) + ' katıldı', kind: 'join' });
     }
 
+    if (msg.type === 'typing' && msg.nick) {
+       wss.clients.forEach(c => {
+    if (c !== ws && c.readyState === WebSocket.OPEN) {
+       c.send(JSON.stringify({ type: 'typing', nick: msg.nick.slice(0, 30) }));
+     }
+    });
+     }
+
     if (msg.type === 'chat' && msg.nick && msg.text) {
       const m = {
         id: Date.now() + '_' + Math.random().toString(36).slice(2),
