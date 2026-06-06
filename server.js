@@ -10,7 +10,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-app.use(express.json({ limit: '20mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 const DB_FILE = path.join(__dirname, 'messages.json');
 const MAX_MESSAGES = 200;
@@ -49,7 +49,7 @@ function broadcastOnline() {
   broadcast({ type: 'online', count: users.length, users });
 }
 
-function uploadToCloudinary(base64Data, callback) {
+function uploadToCloudinary(base64Data, resourceType, callback) {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -60,7 +60,7 @@ function uploadToCloudinary(base64Data, callback) {
   const postData = `file=${encodeURIComponent(base64Data)}&timestamp=${timestamp}&api_key=${apiKey}&signature=${signature}`;
   const options = {
     hostname: 'api.cloudinary.com',
-    path: `/v1_1/${cloudName}/auto/upload`,
+    path: `/v1_1/${cloudName}/${resourceType}/upload`,
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -89,16 +89,42 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.post('/upload-audio', (req, res) => {
   const { audio, nick } = req.body;
   if (!audio || !nick) return res.status(400).json({ error: 'missing' });
-  uploadToCloudinary(audio, (err, url) => {
-    if (err || !url) {
-      console.error('Upload error:', err);
-      return res.status(500).json({ error: 'upload failed' });
-    }
+  uploadToCloudinary(audio, 'video', (err, url) => {
+    if (err || !url) { console.error(err); return res.status(500).json({ error: 'failed' }); }
     const m = {
       id: Date.now() + '_' + Math.random().toString(36).slice(2),
       nick: nick.slice(0, 30),
       text: '🎤 Sesli mesaj',
       audioUrl: url,
+      time: new Date().toISOString(),
+      deleted: false
+    };
+    messages.push(m);
+    if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
+    saveMessages(messages);
+    broadcast({ type: 'message', message: m });
+    res.json({ ok: true });
+  });
+});
+
+app.post('/upload-file', (req, res) => {
+  const { file, nick, fileType, fileName } = req.body;
+  if (!file || !nick) return res.status(400).json({ error: 'missing' });
+
+  let resourceType = 'auto';
+  let msgText = '📄 ' + (fileName || 'Dosya');
+  if (fileType && fileType.startsWith('image/')) { resourceType = 'image'; msgText = '🖼 Fotoğraf'; }
+  else if (fileType && fileType.startsWith('video/')) { resourceType = 'video'; msgText = '🎬 Video'; }
+
+  uploadToCloudinary(file, resourceType, (err, url) => {
+    if (err || !url) { console.error(err); return res.status(500).json({ error: 'failed' }); }
+    const m = {
+      id: Date.now() + '_' + Math.random().toString(36).slice(2),
+      nick: nick.slice(0, 30),
+      text: msgText,
+      fileUrl: url,
+      fileType: fileType || '',
+      fileName: fileName || 'Dosya',
       time: new Date().toISOString(),
       deleted: false
     };
@@ -125,12 +151,12 @@ wss.on('connection', (ws) => {
     }
 
     if (msg.type === 'typing' && msg.nick) {
-       wss.clients.forEach(c => {
-    if (c !== ws && c.readyState === WebSocket.OPEN) {
-       c.send(JSON.stringify({ type: 'typing', nick: msg.nick.slice(0, 30) }));
-     }
-    });
-     }
+      wss.clients.forEach(c => {
+        if (c !== ws && c.readyState === WebSocket.OPEN) {
+          c.send(JSON.stringify({ type: 'typing', nick: msg.nick.slice(0, 30) }));
+        }
+      });
+    }
 
     if (msg.type === 'chat' && msg.nick && msg.text) {
       const m = {
@@ -152,6 +178,7 @@ wss.on('connection', (ws) => {
         m.deleted = true;
         m.text = '';
         m.audioUrl = null;
+        m.fileUrl = null;
         saveMessages(messages);
         broadcast({ type: 'deleted', id: msg.id });
       }
