@@ -6,197 +6,89 @@
   <title>Laviva</title>
   <style>
     :root {
-      --accent: #7c3aed;
-      --accent-dark: #6d28d9;
-      --accent-light: #a78bfa;
-      --accent-bubble: #7c3aed;
+      --accent: #7c3aed; --accent-dark: #6d28d9;
+      --accent-light: #a78bfa; --accent-bubble: #7c3aed;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0f0f13; color: #e0e0e0;
-      height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
-    }
-    header {
-      padding: 12px 16px; background: #17171f;
-      border-bottom: 1px solid #2a2a3a;
-      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
-    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f13; color: #e0e0e0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+    header { padding: 12px 16px; background: #17171f; border-bottom: 1px solid #2a2a3a; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
     header h1 { font-size: 1.2rem; font-weight: 700; color: var(--accent-light); letter-spacing: 1px; }
     #header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
     #online-count { font-size: 0.8rem; color: var(--accent-light); font-weight: 600; display: flex; align-items: center; gap: 4px; }
-    #status-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: #eab308; display: inline-block; transition: background 0.3s;
-    }
+    #status-dot { width: 10px; height: 10px; border-radius: 50%; background: #eab308; display: inline-block; transition: background 0.3s; }
     #status-dot.yellow { background: #eab308; animation: blink 0.6s infinite; }
     #status-dot.red { background: #ef4444; animation: none; }
     #status-dot.green { background: #22c55e; animation: none; }
     @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.2} }
     #online-list { font-size: 0.75rem; color: #6b7280; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #theme-btn {
-      background: none; border: none; color: #6b7280; cursor: pointer;
-      font-size: 1.1rem; padding: 4px; display: flex; align-items: center;
-    }
-
-    /* TEMA PANELİ */
-    #theme-panel {
-      display: none; position: fixed; top: 52px; right: 12px;
-      background: #1e1e2e; border: 1px solid #2a2a3a; border-radius: 12px;
-      padding: 12px; z-index: 100; gap: 8px; flex-wrap: wrap; width: 180px;
-    }
+    #theme-btn { background: none; border: none; color: #6b7280; cursor: pointer; font-size: 1.1rem; padding: 4px; display: flex; align-items: center; }
+    #theme-panel { display: none; position: fixed; top: 52px; right: 12px; background: #1e1e2e; border: 1px solid #2a2a3a; border-radius: 12px; padding: 12px; z-index: 100; gap: 8px; flex-wrap: wrap; width: 180px; }
     #theme-panel.open { display: flex; }
-    .theme-dot {
-      width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
-      border: 2px solid transparent; transition: border-color 0.2s;
-    }
+    .theme-dot { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; }
     .theme-dot.active { border-color: #fff; }
-
-    #lobby-screen {
-      flex: 1; display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 20px; padding: 24px;
-    }
+    #lobby-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 24px; }
     #lobby-screen h2 { font-size: 1rem; color: #9ca3af; font-weight: 400; }
-    #nick-input {
-      -webkit-appearance: none; appearance: none;
-      padding: 12px 18px; border-radius: 10px; border: 1px solid #3a3a50;
-      background: #1e1e2e; color: #fff; font-size: 1rem; outline: none;
-      -webkit-user-select: text; user-select: text;
-      width: 100%; max-width: 300px;
-    }
-    #join-btn {
-      padding: 12px 32px; border-radius: 10px; border: none;
-      background: var(--accent); color: #fff; font-size: 1rem;
-      cursor: pointer; width: 100%; max-width: 300px; -webkit-appearance: none;
-    }
+    #nick-input { -webkit-appearance: none; appearance: none; padding: 12px 18px; border-radius: 10px; border: 1px solid #3a3a50; background: #1e1e2e; color: #fff; font-size: 1rem; outline: none; -webkit-user-select: text; user-select: text; width: 100%; max-width: 300px; }
+    #join-btn { padding: 12px 32px; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-size: 1rem; cursor: pointer; width: 100%; max-width: 300px; -webkit-appearance: none; }
     #lobby-online { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; max-width: 300px; }
     #lobby-online-count { font-size: 0.85rem; color: #6b7280; }
     #lobby-online-count span { color: #22c55e; font-weight: 700; }
     #lobby-online-names { font-size: 0.78rem; color: #4b5563; text-align: center; line-height: 1.6; }
-
-    #connecting-screen {
-      flex: 1; display: none; flex-direction: column; align-items: center;
-      justify-content: center; gap: 12px;
-    }
+    #connecting-screen { flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
     #connecting-screen p { color: #9ca3af; font-size: 0.95rem; }
-    .spinner {
-      width: 32px; height: 32px; border: 3px solid #3a3a50;
-      border-top-color: var(--accent-light); border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
+    .spinner { width: 32px; height: 32px; border: 3px solid #3a3a50; border-top-color: var(--accent-light); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
     #chat-screen { display: none; flex: 1; flex-direction: column; overflow: hidden; }
-    #messages {
-      flex: 1; overflow-y: auto; padding: 16px;
-      display: flex; flex-direction: column; gap: 6px;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-    }
+    #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
     .msg { display: flex; flex-direction: column; gap: 2px; max-width: 80%; position: relative; }
     .msg.mine { align-self: flex-end; align-items: flex-end; }
     .msg.other { align-self: flex-start; align-items: flex-start; }
     .msg-nick { font-size: 0.7rem; color: #6b7280; padding: 0 4px; margin-top: 6px; }
     .msg.mine .msg-nick { color: var(--accent-light); }
-    .msg-bubble {
-      padding: 9px 14px; border-radius: 16px;
-      font-size: 0.93rem; line-height: 1.5; word-break: break-word;
-    }
+    .msg-bubble { padding: 9px 14px; border-radius: 16px; font-size: 0.93rem; line-height: 1.5; word-break: break-word; }
     .msg.mine .msg-bubble { background: var(--accent-bubble); color: #fff; border-bottom-right-radius: 4px; }
     .msg.other .msg-bubble { background: #1e1e2e; color: #e0e0e0; border-bottom-left-radius: 4px; }
     .msg-time { font-size: 0.65rem; color: #4b5563; padding: 0 4px; }
-    .delete-btn {
-      display: none; position: absolute; top: -8px; right: -8px;
-      background: #ef4444; border: none; color: white;
-      border-radius: 50%; width: 22px; height: 22px;
-      font-size: 0.7rem; cursor: pointer;
-      align-items: center; justify-content: center; z-index: 10;
-    }
+    .delete-btn { display: none; position: absolute; top: -8px; right: -8px; background: #ef4444; border: none; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 0.7rem; cursor: pointer; align-items: center; justify-content: center; z-index: 10; }
     .msg.mine.show-delete .delete-btn { display: flex; }
     .deleted-text { font-style: italic; color: #6b7280 !important; font-size: 0.85rem; }
-    .system-msg {
-      text-align: center; font-size: 0.75rem; color: #6b7280;
-      padding: 3px 10px; border-radius: 10px; align-self: center; margin: 4px 0;
-    }
-    .audio-bubble {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 12px; border-radius: 16px; background: #1e1e2e; min-width: 160px;
-    }
+    .system-msg { text-align: center; font-size: 0.75rem; color: #6b7280; padding: 3px 10px; border-radius: 10px; align-self: center; margin: 4px 0; }
+    .audio-bubble { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 16px; background: #1e1e2e; min-width: 160px; }
     .msg.mine .audio-bubble { background: var(--accent-dark); }
-    .play-btn {
-      width: 32px; height: 32px; border-radius: 50%; border: none;
-      background: var(--accent-light); color: white; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.9rem; flex-shrink: 0;
-    }
+    .play-btn { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--accent-light); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
     .audio-label { font-size: 0.85rem; color: #e0e0e0; flex: 1; }
-    .file-bubble {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 12px; border-radius: 16px; background: #1e1e2e; min-width: 160px;
-      text-decoration: none;
-    }
+    .file-bubble { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 16px; background: #1e1e2e; min-width: 160px; text-decoration: none; }
     .msg.mine .file-bubble { background: var(--accent-dark); }
     .file-icon { font-size: 1.4rem; flex-shrink: 0; }
     .file-name { font-size: 0.82rem; color: #e0e0e0; word-break: break-all; }
-    .msg-img {
-      max-width: 220px; max-height: 220px; border-radius: 12px;
-      display: block; cursor: pointer; object-fit: cover;
-    }
-    .msg-video {
-      max-width: 220px; border-radius: 12px; display: block;
-    }
-
-    #typing-status {
-      text-align: center; font-size: 0.75rem; color: #6b7280;
-      padding: 2px 12px; min-height: 18px; flex-shrink: 0;
-    }
-    #upload-status {
-      text-align: center; font-size: 0.75rem; color: var(--accent-light);
-      padding: 4px; display: none; flex-shrink: 0;
-    }
-    #input-area {
-      padding: 10px 12px; background: #17171f;
-      border-top: 1px solid #2a2a3a; display: flex; gap: 8px; align-items: center; flex-shrink: 0;
-    }
-    #msg-input {
-      flex: 1; padding: 11px 16px; border-radius: 24px;
-      -webkit-appearance: none; appearance: none;
-      border: 1px solid #3a3a50; background: #1e1e2e;
-      color: #fff; font-size: 1rem; outline: none;
-      -webkit-user-select: text; user-select: text;
-    }
-    #send-btn, #mic-btn, #file-btn {
-      width: 44px; height: 44px; border-radius: 50%; border: none;
-      color: #fff; font-size: 1.1rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; -webkit-appearance: none;
-    }
+    .msg-img { max-width: 220px; max-height: 220px; border-radius: 12px; display: block; cursor: pointer; object-fit: cover; }
+    .msg-video { max-width: 220px; border-radius: 12px; display: block; }
+    #typing-status { text-align: center; font-size: 0.75rem; color: #6b7280; padding: 2px 12px; min-height: 18px; flex-shrink: 0; }
+    #upload-status { text-align: center; font-size: 0.75rem; color: var(--accent-light); padding: 4px; display: none; flex-shrink: 0; }
+    #input-area { padding: 10px 12px; background: #17171f; border-top: 1px solid #2a2a3a; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    #msg-input { flex: 1; padding: 11px 16px; border-radius: 24px; -webkit-appearance: none; appearance: none; border: 1px solid #3a3a50; background: #1e1e2e; color: #fff; font-size: 1rem; outline: none; -webkit-user-select: text; user-select: text; }
+    #send-btn, #mic-btn, #file-btn, #emoji-btn { width: 44px; height: 44px; border-radius: 50%; border: none; color: #fff; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; -webkit-appearance: none; }
     #send-btn { background: var(--accent); }
-    #mic-btn, #file-btn { background: #1e1e2e; border: 1px solid #3a3a50; font-size: 1.2rem; }
+    #mic-btn, #file-btn, #emoji-btn { background: #1e1e2e; border: 1px solid #3a3a50; font-size: 1.2rem; }
     #mic-btn.recording { background: #ef4444; border-color: #ef4444; animation: blink 0.6s infinite; }
-
-    /* Lightbox */
-    #lightbox {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.9); z-index: 200;
-      align-items: center; justify-content: center;
-    }
+    #emoji-panel { display: none; position: fixed; bottom: 70px; left: 0; right: 0; background: #17171f; border-top: 1px solid #2a2a3a; padding: 10px; z-index: 50; max-height: 220px; overflow-y: auto; }
+    #emoji-panel.open { display: block; }
+    #emoji-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 4px; }
+    #emoji-panel-header span { font-size: 0.8rem; color: #6b7280; }
+    #emoji-close { background: none; border: none; color: #6b7280; font-size: 1.2rem; cursor: pointer; }
+    #emoji-grid { display: flex; flex-wrap: wrap; gap: 2px; }
+    .emoji-item { font-size: 1.6rem; cursor: pointer; padding: 4px; border-radius: 8px; line-height: 1; }
+    #lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; align-items: center; justify-content: center; }
     #lightbox.open { display: flex; }
     #lightbox img { max-width: 95vw; max-height: 95vh; border-radius: 8px; }
-    #lightbox-close {
-      position: fixed; top: 16px; right: 16px;
-      background: none; border: none; color: #fff;
-      font-size: 2rem; cursor: pointer; z-index: 201;
-    }
+    #lightbox-close { position: fixed; top: 16px; right: 16px; background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; z-index: 201; }
   </style>
 </head>
 <body>
-
 <div id="lightbox">
   <button id="lightbox-close">✕</button>
   <img id="lightbox-img" src="" />
 </div>
-
 <header>
   <h1>laviva</h1>
   <div id="header-right">
@@ -208,60 +100,59 @@
     <button id="theme-btn" title="Tema">🎨</button>
   </div>
 </header>
-
 <div id="theme-panel">
-  <div class="theme-dot active" style="background:#7c3aed" data-accent="#7c3aed" data-dark="#6d28d9" data-light="#a78bfa" title="Mor"></div>
-  <div class="theme-dot" style="background:#2563eb" data-accent="#2563eb" data-dark="#1d4ed8" data-light="#60a5fa" title="Mavi"></div>
-  <div class="theme-dot" style="background:#0891b2" data-accent="#0891b2" data-dark="#0e7490" data-light="#22d3ee" title="Cyan"></div>
-  <div class="theme-dot" style="background:#059669" data-accent="#059669" data-dark="#047857" data-light="#34d399" title="Yeşil"></div>
-  <div class="theme-dot" style="background:#db2777" data-accent="#db2777" data-dark="#be185d" data-light="#f472b6" title="Pembe"></div>
-  <div class="theme-dot" style="background:#dc2626" data-accent="#dc2626" data-dark="#b91c1c" data-light="#f87171" title="Kırmızı"></div>
-  <div class="theme-dot" style="background:#d97706" data-accent="#d97706" data-dark="#b45309" data-light="#fbbf24" title="Turuncu"></div>
-  <div class="theme-dot" style="background:#475569" data-accent="#475569" data-dark="#334155" data-light="#94a3b8" title="Gri"></div>
+  <div class="theme-dot active" style="background:#7c3aed" data-accent="#7c3aed" data-dark="#6d28d9" data-light="#a78bfa"></div>
+  <div class="theme-dot" style="background:#2563eb" data-accent="#2563eb" data-dark="#1d4ed8" data-light="#60a5fa"></div>
+  <div class="theme-dot" style="background:#0891b2" data-accent="#0891b2" data-dark="#0e7490" data-light="#22d3ee"></div>
+  <div class="theme-dot" style="background:#059669" data-accent="#059669" data-dark="#047857" data-light="#34d399"></div>
+  <div class="theme-dot" style="background:#db2777" data-accent="#db2777" data-dark="#be185d" data-light="#f472b6"></div>
+  <div class="theme-dot" style="background:#dc2626" data-accent="#dc2626" data-dark="#b91c1c" data-light="#f87171"></div>
+  <div class="theme-dot" style="background:#d97706" data-accent="#d97706" data-dark="#b45309" data-light="#fbbf24"></div>
+  <div class="theme-dot" style="background:#475569" data-accent="#475569" data-dark="#334155" data-light="#94a3b8"></div>
 </div>
-
 <div id="lobby-screen">
   <h2>Takma adını gir</h2>
-  <input id="nick-input" type="text" placeholder="nick..." maxlength="30"
-    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+  <input id="nick-input" type="text" placeholder="nick..." maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
   <button id="join-btn">Katıl</button>
   <div id="lobby-online">
     <div id="lobby-online-count">Şu an <span id="lobby-count">0</span> kişi çevrimiçi</div>
     <div id="lobby-online-names"></div>
   </div>
 </div>
-
 <div id="connecting-screen">
   <div class="spinner"></div>
   <p>Bağlanıyor...</p>
 </div>
-
 <div id="chat-screen">
   <div id="messages"></div>
   <div id="typing-status"></div>
   <div id="upload-status">⏳ Yükleniyor...</div>
+  <div id="emoji-panel">
+    <div id="emoji-panel-header">
+      <span>Emoji seç</span>
+      <button id="emoji-close">✕</button>
+    </div>
+    <div id="emoji-grid"></div>
+  </div>
   <div id="input-area">
-    <button id="file-btn" title="Dosya gönder">📎</button>
+    <button id="file-btn" title="Dosya">📎</button>
     <button id="mic-btn">🎤</button>
-    <input id="msg-input" type="text" placeholder="Mesaj yaz..." maxlength="500"
-      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+    <button id="emoji-btn">😊</button>
+    <input id="msg-input" type="text" placeholder="Mesaj yaz..." maxlength="500" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
     <button id="send-btn">➤</button>
   </div>
 </div>
-
 <input type="file" id="file-input" accept="image/*,video/*,application/pdf,.doc,.docx,.txt" style="display:none" />
 
-<script>
+  <script>
   const NICK_KEY = 'laviva_nick';
   const THEME_KEY = 'laviva_theme';
   let nick = localStorage.getItem(NICK_KEY) || '';
-  let ws = null;
-  let lobbyWs = null;
-  let mediaRecorder = null;
-  let audioChunks = [];
-  let isRecording = false;
-  let typingTimeout = null;
-  let typingClearTimeout = null;
+  let ws = null, lobbyWs = null;
+  let mediaRecorder = null, audioChunks = [], isRecording = false;
+  let typingTimeout = null, typingClearTimeout = null;
+  let unreadCount = 0;
+  let pageVisible = true;
 
   const lobbyScreen = document.getElementById('lobby-screen');
   const connectingScreen = document.getElementById('connecting-screen');
@@ -274,6 +165,10 @@
   const micBtn = document.getElementById('mic-btn');
   const fileBtn = document.getElementById('file-btn');
   const fileInput = document.getElementById('file-input');
+  const emojiBtn = document.getElementById('emoji-btn');
+  const emojiPanel = document.getElementById('emoji-panel');
+  const emojiClose = document.getElementById('emoji-close');
+  const emojiGrid = document.getElementById('emoji-grid');
   const onlineNum = document.getElementById('online-num');
   const onlineList = document.getElementById('online-list');
   const statusDot = document.getElementById('status-dot');
@@ -296,27 +191,89 @@
     document.documentElement.style.setProperty('--accent-light', light);
     document.documentElement.style.setProperty('--accent-bubble', accent);
     localStorage.setItem(THEME_KEY, JSON.stringify({ accent, dark, light }));
-    document.querySelectorAll('.theme-dot').forEach(d => {
-      d.classList.toggle('active', d.dataset.accent === accent);
-    });
+    document.querySelectorAll('.theme-dot').forEach(d => d.classList.toggle('active', d.dataset.accent === accent));
   }
-
   const savedTheme = localStorage.getItem(THEME_KEY);
-  if (savedTheme) {
-    try { const t = JSON.parse(savedTheme); applyTheme(t.accent, t.dark, t.light); } catch(e) {}
-  }
-
-  themeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    themePanel.classList.toggle('open');
-  });
-  document.addEventListener('click', () => themePanel.classList.remove('open'));
+  if (savedTheme) { try { const t = JSON.parse(savedTheme); applyTheme(t.accent, t.dark, t.light); } catch(e) {} }
+  themeBtn.addEventListener('click', (e) => { e.stopPropagation(); themePanel.classList.toggle('open'); emojiPanel.classList.remove('open'); });
+  document.addEventListener('click', () => { themePanel.classList.remove('open'); });
   themePanel.addEventListener('click', e => e.stopPropagation());
   document.querySelectorAll('.theme-dot').forEach(dot => {
-    dot.addEventListener('click', () => {
-      applyTheme(dot.dataset.accent, dot.dataset.dark, dot.dataset.light);
-    });
+    dot.addEventListener('click', () => applyTheme(dot.dataset.accent, dot.dataset.dark, dot.dataset.light));
   });
+
+  // Emoji
+  const EMOJIS = [
+    '😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘',
+    '😗','😙','😚','🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥',
+    '😮','🤐','😯','😪','😫','🥱','😴','😌','😛','😜','😝','🤤','😒','😓','😔',
+    '😕','🙃','🤑','😲','☹️','🙁','😖','😞','😟','😤','😢','😭','😦','😧','😨',
+    '😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','😷','🤒',
+    '🤕','🤢','🤮','🤧','🥴','😇','🥳','🥺','🤠','🤡','🤥','🤫','🤭','🧐','🤓',
+    '😈','👿','👹','👺','💀','☠️','👻','👽','👾','🤖','💩','😺','😸','😹','😻',
+    '👋','🤚','🖐','✋','🖖','👌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆',
+    '🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏',
+    '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗',
+    '💖','💘','💝','💟','☮️','✝️','☯️','🔥','💫','⭐','🌟','💥','❄️','🌈','🎉',
+    '🎊','🎈','🎁','🏆','🥇','⚽','🏀','🍕','🍔','🍣','☕','🍺','🚀','✈️','🌍'
+  ];
+  EMOJIS.forEach(em => {
+    const span = document.createElement('span');
+    span.className = 'emoji-item';
+    span.textContent = em;
+    span.addEventListener('click', () => {
+      const start = msgInput.selectionStart;
+      const end = msgInput.selectionEnd;
+      const val = msgInput.value;
+      msgInput.value = val.slice(0, start) + em + val.slice(end);
+      msgInput.selectionStart = msgInput.selectionEnd = start + em.length;
+      msgInput.focus();
+    });
+    emojiGrid.appendChild(span);
+  });
+  emojiBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    emojiPanel.classList.toggle('open');
+    themePanel.classList.remove('open');
+    if (emojiPanel.classList.contains('open')) msgInput.focus();
+  });
+  emojiClose.addEventListener('click', () => emojiPanel.classList.remove('open'));
+
+  // Bildirim
+  document.addEventListener('visibilitychange', () => {
+    pageVisible = !document.hidden;
+    if (pageVisible) { unreadCount = 0; document.title = 'Laviva'; }
+  });
+
+  function notifyNewMessage(msg) {
+    if (pageVisible) return;
+    unreadCount++;
+    document.title = `(${unreadCount}) Laviva`;
+    if (navigator.vibrate) navigator.vibrate(100);
+    if (Notification.permission === 'granted') {
+      new Notification('Laviva', { body: msg.nick + ': ' + (msg.audioUrl ? '🎤 Sesli mesaj' : msg.fileUrl ? '📎 Dosya' : msg.text), icon: '/favicon.ico' });
+    }
+  }
+
+  function playNotifSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3);
+    } catch(e) {}
+  }
+
+  if ('Notification' in window && Notification.permission === 'default') {
+    setTimeout(() => {
+      Notification.requestPermission();
+    }, 3000);
+  }
 
   // Lightbox
   lightboxClose.addEventListener('click', () => lightbox.classList.remove('open'));
@@ -353,28 +310,16 @@
 
   function getBubbleHtml(msg) {
     if (msg.deleted) return `<div class="msg-bubble deleted-text">Bu mesaj silindi</div>`;
-    if (msg.audioUrl) return `
-      <div class="audio-bubble">
-        <button class="play-btn" data-url="${escapeHtml(msg.audioUrl)}">▶</button>
-        <span class="audio-label">Sesli mesaj</span>
-      </div>`;
+    if (msg.audioUrl) return `<div class="audio-bubble"><button class="play-btn" data-url="${escapeHtml(msg.audioUrl)}">▶</button><span class="audio-label">Sesli mesaj</span></div>`;
     if (msg.fileUrl) {
-      if (msg.fileType && msg.fileType.startsWith('image/')) {
-        return `<img class="msg-img" src="${escapeHtml(msg.fileUrl)}" alt="foto" />`;
-      }
-      if (msg.fileType && msg.fileType.startsWith('video/')) {
-        return `<video class="msg-video" src="${escapeHtml(msg.fileUrl)}" controls></video>`;
-      }
-      return `
-        <a class="file-bubble" href="${escapeHtml(msg.fileUrl)}" target="_blank" rel="noopener">
-          <span class="file-icon">📄</span>
-          <span class="file-name">${escapeHtml(msg.fileName || 'Dosya')}</span>
-        </a>`;
+      if (msg.fileType && msg.fileType.startsWith('image/')) return `<img class="msg-img" src="${escapeHtml(msg.fileUrl)}" alt="foto" />`;
+      if (msg.fileType && msg.fileType.startsWith('video/')) return `<video class="msg-video" src="${escapeHtml(msg.fileUrl)}" controls></video>`;
+      return `<a class="file-bubble" href="${escapeHtml(msg.fileUrl)}" target="_blank" rel="noopener"><span class="file-icon">📄</span><span class="file-name">${escapeHtml(msg.fileName||'Dosya')}</span></a>`;
     }
     return `<div class="msg-bubble">${escapeHtml(msg.text)}</div>`;
   }
 
-  function addMessage(msg, isMine) {
+    function addMessage(msg, isMine) {
     const div = document.createElement('div');
     div.className = 'msg ' + (isMine ? 'mine' : 'other');
     div.dataset.id = msg.id;
@@ -383,15 +328,8 @@
 
     const allMsgs = messagesEl.querySelectorAll('.msg');
     const prev = allMsgs[allMsgs.length - 1];
-    const sameGroup = prev &&
-      prev.dataset.nick === msg.nick &&
-      prev.dataset.time === formatTime(msg.time) &&
-      !msg.deleted;
-
-    if (sameGroup) {
-      const prevTime = prev.querySelector('.msg-time');
-      if (prevTime) prevTime.remove();
-    }
+    const sameGroup = prev && prev.dataset.nick === msg.nick && prev.dataset.time === formatTime(msg.time) && !msg.deleted;
+    if (sameGroup) { const pt = prev.querySelector('.msg-time'); if (pt) pt.remove(); }
 
     div.innerHTML = `
       ${sameGroup ? '' : `<span class="msg-nick">${escapeHtml(msg.nick)}</span>`}
@@ -401,28 +339,15 @@
     `;
 
     const playBtn = div.querySelector('.play-btn');
-    if (playBtn) {
-      playBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        new Audio(playBtn.dataset.url).play().catch(() => {});
-      });
-    }
+    if (playBtn) playBtn.addEventListener('click', (e) => { e.stopPropagation(); new Audio(playBtn.dataset.url).play().catch(()=>{}); });
 
     const imgEl = div.querySelector('.msg-img');
-    if (imgEl) {
-      imgEl.addEventListener('click', () => {
-        lightboxImg.src = imgEl.src;
-        lightbox.classList.add('open');
-      });
-    }
+    if (imgEl) imgEl.addEventListener('click', () => { lightboxImg.src = imgEl.src; lightbox.classList.add('open'); });
 
     if (isMine && !msg.deleted) {
       div.addEventListener('click', function(e) {
-        if (e.target.classList.contains('delete-btn')) {
-          ws.send(JSON.stringify({ type: 'delete', id: msg.id, nick }));
-          return;
-        }
-        if (['play-btn','msg-img','msg-video','file-bubble'].some(c => e.target.classList.contains(c))) return;
+        if (e.target.classList.contains('delete-btn')) { ws.send(JSON.stringify({ type: 'delete', id: msg.id, nick })); return; }
+        if (['play-btn','msg-img','msg-video'].some(c => e.target.classList.contains(c))) return;
         document.querySelectorAll('.msg.mine').forEach(m => m.classList.remove('show-delete'));
         div.classList.toggle('show-delete');
       });
@@ -430,14 +355,18 @@
 
     messagesEl.appendChild(div);
     scrollBottom();
+
+    if (!isMine) {
+      playNotifSound();
+      notifyNewMessage(msg);
+      if (navigator.vibrate) navigator.vibrate(80);
+    }
   }
 
   async function toggleRecording() {
     if (isRecording) {
-      mediaRecorder.stop();
-      isRecording = false;
-      micBtn.classList.remove('recording');
-      micBtn.textContent = '🎤';
+      mediaRecorder.stop(); isRecording = false;
+      micBtn.classList.remove('recording'); micBtn.textContent = '🎤';
     } else {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -451,51 +380,31 @@
           const reader = new FileReader();
           reader.onload = async () => {
             try {
-              const res = await fetch('/upload-audio', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ audio: reader.result, nick })
-              });
+              const res = await fetch('/upload-audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audio: reader.result, nick }) });
               if (!res.ok) throw new Error();
-            } catch (e) {
-              alert('Ses gönderilemedi!');
-            } finally {
-              uploadStatus.style.display = 'none';
-            }
+            } catch(e) { alert('Ses gönderilemedi!'); }
+            finally { uploadStatus.style.display = 'none'; }
           };
           reader.readAsDataURL(blob);
         };
-        mediaRecorder.start();
-        isRecording = true;
-        micBtn.classList.add('recording');
-        micBtn.textContent = '⏹';
-      } catch (e) {
-        alert('Mikrofon izni gerekli!');
-      }
+        mediaRecorder.start(); isRecording = true;
+        micBtn.classList.add('recording'); micBtn.textContent = '⏹';
+      } catch(e) { alert('Mikrofon izni gerekli!'); }
     }
   }
 
-    fileBtn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-    fileInput.value = '';
+  fileBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0]; if (!file) return; fileInput.value = '';
     if (file.size > 20 * 1024 * 1024) { alert('Dosya 20MB\'dan büyük olamaz!'); return; }
     uploadStatus.style.display = 'block';
     const reader = new FileReader();
     reader.onload = async () => {
       try {
-        const res = await fetch('/upload-file', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file: reader.result, nick, fileType: file.type, fileName: file.name })
-        });
+        const res = await fetch('/upload-file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: reader.result, nick, fileType: file.type, fileName: file.name }) });
         if (!res.ok) throw new Error();
-      } catch (e) {
-        alert('Dosya gönderilemedi!');
-      } finally {
-        uploadStatus.style.display = 'none';
-      }
+      } catch(e) { alert('Dosya gönderilemedi!'); }
+      finally { uploadStatus.style.display = 'none'; }
     };
     reader.readAsDataURL(file);
   });
@@ -505,27 +414,21 @@
     lobbyWs = new WebSocket(`${proto}://${location.host}`);
     lobbyWs.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      if (data.type === 'online') {
-        lobbyCount.textContent = data.count;
-        lobbyNames.textContent = data.users.length > 0 ? data.users.join(', ') : '';
-      }
+      if (data.type === 'online') { lobbyCount.textContent = data.count; lobbyNames.textContent = data.users.length > 0 ? data.users.join(', ') : ''; }
     };
     lobbyWs.onclose = () => {};
   }
 
   function connectChat() {
-    showScreen('connecting');
-    setStatus('yellow');
+    showScreen('connecting'); setStatus('yellow');
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     ws = new WebSocket(`${proto}://${location.host}`);
-
     ws.onopen = () => {
       setStatus('green');
       ws.send(JSON.stringify({ type: 'join', nick }));
       showScreen('chat');
       setTimeout(() => msgInput.focus(), 300);
     };
-
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
       if (data.type === 'history') {
@@ -536,13 +439,8 @@
       } else if (data.type === 'deleted') {
         const el = document.querySelector(`[data-id="${data.id}"]`);
         if (el) {
-          const n = el.querySelector('.msg-nick');
-          const t = el.querySelector('.msg-time');
-          el.innerHTML = `
-            ${n ? `<span class="msg-nick">${escapeHtml(n.textContent)}</span>` : ''}
-            <div class="msg-bubble deleted-text">Bu mesaj silindi</div>
-            ${t ? `<span class="msg-time">${t.textContent}</span>` : ''}
-          `;
+          const n = el.querySelector('.msg-nick'); const t = el.querySelector('.msg-time');
+          el.innerHTML = `${n ? `<span class="msg-nick">${escapeHtml(n.textContent)}</span>` : ''}<div class="msg-bubble deleted-text">Bu mesaj silindi</div>${t ? `<span class="msg-time">${t.textContent}</span>` : ''}`;
           el.classList.remove('show-delete');
         }
       } else if (data.type === 'online') {
@@ -556,18 +454,12 @@
         typingTimeout = setTimeout(() => { typingStatus.textContent = ''; }, 2000);
       }
     };
-
-    ws.onclose = () => {
-      setStatus('red');
-      setTimeout(connectChat, 2000);
-    };
+    ws.onclose = () => { setStatus('red'); setTimeout(connectChat, 2000); };
   }
 
   function enterChat() {
-    const n = nickInput.value.trim();
-    if (!n) return;
-    nick = n;
-    localStorage.setItem(NICK_KEY, nick);
+    const n = nickInput.value.trim(); if (!n) return;
+    nick = n; localStorage.setItem(NICK_KEY, nick);
     if (lobbyWs) { lobbyWs.close(); lobbyWs = null; }
     connectChat();
   }
@@ -576,8 +468,8 @@
     const text = msgInput.value.trim();
     if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'chat', nick, text }));
-    msgInput.value = '';
-    msgInput.focus();
+    msgInput.value = ''; msgInput.focus();
+    emojiPanel.classList.remove('open');
   }
 
   msgInput.addEventListener('input', () => {
@@ -594,9 +486,7 @@
   msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
 
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', () => {
-      setTimeout(scrollBottom, 100);
-    });
+    window.visualViewport.addEventListener('resize', () => { setTimeout(scrollBottom, 100); });
   }
 
   showScreen('lobby');
