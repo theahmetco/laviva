@@ -13,6 +13,13 @@
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f13; color: #e0e0e0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
     header { padding: 12px 16px; background: #17171f; border-bottom: 1px solid #2a2a3a; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
     header h1 { font-size: 1.2rem; font-weight: 700; color: var(--accent-light); letter-spacing: 1px; }
+    #countdown {
+      font-size: 0.75rem; font-weight: 700; color: #a78bfa;
+      font-variant-numeric: tabular-nums; letter-spacing: 1px;
+      background: #1e1e2e; padding: 3px 8px; border-radius: 8px;
+      border: 1px solid #3a3a50; font-family: 'Courier New', monospace;
+    }
+    #countdown.urgent { color: #ef4444; border-color: #ef4444; animation: blink 1s infinite; }
     #header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
     #online-count { font-size: 0.8rem; color: var(--accent-light); font-weight: 600; display: flex; align-items: center; gap: 4px; }
     #status-dot { width: 10px; height: 10px; border-radius: 50%; background: #eab308; display: inline-block; transition: background 0.3s; }
@@ -20,11 +27,11 @@
     #status-dot.red { background: #ef4444; animation: none; }
     #status-dot.green { background: #22c55e; animation: none; }
     @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.2} }
-    #online-list { font-size: 0.75rem; color: #6b7280; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #online-list { font-size: 0.75rem; color: #6b7280; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #theme-btn { background: none; border: none; color: #6b7280; cursor: pointer; font-size: 1.1rem; padding: 4px; display: flex; align-items: center; }
     #theme-panel { display: none; position: fixed; top: 52px; right: 12px; background: #1e1e2e; border: 1px solid #2a2a3a; border-radius: 12px; padding: 12px; z-index: 100; gap: 8px; flex-wrap: wrap; width: 180px; }
     #theme-panel.open { display: flex; }
-    .theme-dot { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; }
+    .theme-dot { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
     .theme-dot.active { border-color: #fff; }
     #lobby-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 24px; }
     #lobby-screen h2 { font-size: 1rem; color: #9ca3af; font-weight: 400; }
@@ -86,21 +93,38 @@
     #lightbox.open { display: flex; }
     #lightbox img { max-width: 95vw; max-height: 95vh; border-radius: 8px; }
     #lightbox-close { position: fixed; top: 16px; right: 16px; background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; z-index: 201; }
+
+    /* KAPANIŞ EKRANI */
+    #closed-screen {
+      display: none; flex: 1; flex-direction: column; align-items: center;
+      justify-content: center; padding: 32px; text-align: center; gap: 24px;
+    }
+    #closed-screen.active { display: flex; }
+    .closed-title { font-size: 2rem; font-weight: 700; color: var(--accent-light); letter-spacing: 2px; }
+    .closed-subtitle { font-size: 0.95rem; color: #6b7280; line-height: 1.8; max-width: 320px; }
+    .closed-date { font-size: 0.8rem; color: #3a3a50; margin-top: 8px; }
+    .closed-heart { font-size: 2.5rem; animation: heartbeat 2s ease-in-out infinite; }
+    @keyframes heartbeat { 0%,100%{transform:scale(1)}50%{transform:scale(1.15)} }
+    .closed-line { width: 60px; height: 1px; background: #2a2a3a; }
+    .rain { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .drop { position: absolute; top: -20px; width: 1px; background: linear-gradient(to bottom, transparent, #a78bfa33); animation: fall linear infinite; }
+    @keyframes fall { to { transform: translateY(100vh); } }
   </style>
 </head>
 <body>
-<div id="lightbox">
-  <button id="lightbox-close">✕</button>
-  <img id="lightbox-img" src="" />
-</div>
+     <div class="rain" id="rain"></div>
+<div id="lightbox"><button id="lightbox-close">✕</button><img id="lightbox-img" src="" /></div>
+
 <header>
   <h1>laviva</h1>
+  <span id="countdown">--:--:--</span>
   <div id="header-right">
     <span id="online-count"><span id="status-dot" class="yellow"></span><span id="online-num">0</span></span>
     <span id="online-list"></span>
     <button id="theme-btn">🎨</button>
   </div>
 </header>
+
 <div id="theme-panel">
   <div class="theme-dot active" style="background:#7c3aed" data-accent="#7c3aed" data-dark="#6d28d9" data-light="#a78bfa"></div>
   <div class="theme-dot" style="background:#2563eb" data-accent="#2563eb" data-dark="#1d4ed8" data-light="#60a5fa"></div>
@@ -111,6 +135,7 @@
   <div class="theme-dot" style="background:#d97706" data-accent="#d97706" data-dark="#b45309" data-light="#fbbf24"></div>
   <div class="theme-dot" style="background:#475569" data-accent="#475569" data-dark="#334155" data-light="#94a3b8"></div>
 </div>
+
 <div id="lobby-screen">
   <h2>Takma adını gir</h2>
   <input id="nick-input" type="text" placeholder="nick..." maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
@@ -120,10 +145,9 @@
     <div id="lobby-online-names"></div>
   </div>
 </div>
-<div id="connecting-screen">
-  <div class="spinner"></div>
-  <p>Bağlanıyor...</p>
-</div>
+
+<div id="connecting-screen"><div class="spinner"></div><p>Bağlanıyor...</p></div>
+
 <div id="chat-screen">
   <div id="messages"></div>
   <div id="typing-status"></div>
@@ -140,9 +164,24 @@
     <button id="send-btn">➤</button>
   </div>
 </div>
-<input type="file" id="file-input" accept="image/*,video/*,application/pdf,.doc,.docx,.txt" style="display:none" />
 
-  <script>
+<div id="closed-screen">
+  <div class="closed-heart">💜</div>
+  <div class="closed-title">laviva</div>
+  <div class="closed-line"></div>
+  <div class="closed-subtitle">
+    Bir dönem burada konuştuk, güldük, vakit geçirdik.<br><br>
+    Her şeyin bir sonu var.<br>
+    Bu da bizim sonumuzdu.<br><br>
+    Ama buradaki anlar,<br>
+    bir yerlerde hâlâ yaşıyor.
+  </div>
+  <div class="closed-line"></div>
+  <div class="closed-date">11 Haziran 2026 · 23:59</div>
+</div>
+
+<input type="file" id="file-input" accept="image/*,video/*,application/pdf,.doc,.docx,.txt" style="display:none" />
+   <script>
   const NICK_KEY = 'laviva_nick';
   const THEME_KEY = 'laviva_theme';
   let nick = localStorage.getItem(NICK_KEY) || '';
@@ -150,11 +189,14 @@
   let mediaRecorder = null, audioChunks = [], isRecording = false;
   let typingTimeout = null, typingClearTimeout = null;
   let unreadCount = 0, pageVisible = true;
-  let currentAudio = null, currentPlayBtn = null, currentFill = null, currentDuration = null;
+  let currentAudio = null, currentPlayBtn = null, currentFill = null;
+  let SHUTDOWN_TIME = new Date('2026-06-11T23:59:59+03:00').getTime();
+  let isClosed = false;
 
   const lobbyScreen = document.getElementById('lobby-screen');
   const connectingScreen = document.getElementById('connecting-screen');
   const chatScreen = document.getElementById('chat-screen');
+  const closedScreen = document.getElementById('closed-screen');
   const nickInput = document.getElementById('nick-input');
   const joinBtn = document.getElementById('join-btn');
   const messagesEl = document.getElementById('messages');
@@ -179,8 +221,58 @@
   const lightbox = document.getElementById('lightbox');
   const lightboxImg = document.getElementById('lightbox-img');
   const lightboxClose = document.getElementById('lightbox-close');
+  const countdownEl = document.getElementById('countdown');
+  const rainEl = document.getElementById('rain');
 
   if (nick) nickInput.value = nick;
+
+  // Yağmur efekti kapanış ekranı için
+  function startRain() {
+    rainEl.innerHTML = '';
+    for (let i = 0; i < 40; i++) {
+      const drop = document.createElement('div');
+      drop.className = 'drop';
+      drop.style.left = Math.random() * 100 + 'vw';
+      drop.style.height = (60 + Math.random() * 80) + 'px';
+      drop.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+      drop.style.animationDelay = (Math.random() * 3) + 's';
+      drop.style.opacity = (0.3 + Math.random() * 0.4).toString();
+      rainEl.appendChild(drop);
+    }
+  }
+
+  // Geri sayım — TR saatine kilitli
+  function updateCountdown() {
+    const now = Date.now();
+    const diff = SHUTDOWN_TIME - now;
+    if (diff <= 0) {
+      countdownEl.textContent = '00:00:00';
+      if (!isClosed) triggerClose();
+      return;
+    }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    countdownEl.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    if (diff < 60 * 60 * 1000) countdownEl.classList.add('urgent');
+    else countdownEl.classList.remove('urgent');
+  }
+
+  function triggerClose() {
+    isClosed = true;
+    if (ws) ws.close();
+    if (lobbyWs) lobbyWs.close();
+    lobbyScreen.style.display = 'none';
+    connectingScreen.style.display = 'none';
+    chatScreen.style.display = 'none';
+    closedScreen.classList.add('active');
+    startRain();
+    document.title = 'laviva · son';
+    countdownEl.textContent = '00:00:00';
+  }
+
+  setInterval(updateCountdown, 1000);
+  updateCountdown();
 
   // Tema
   function applyTheme(accent, dark, light) {
@@ -201,16 +293,14 @@
   });
 
   // Emoji
-  const EMOJIS = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','🥱','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','☹️','🙁','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','😷','🤒','🤕','🤢','🤮','🤧','🥴','😇','🥳','🥺','🤠','🤡','🤥','🤫','🤭','🧐','🤓','😈','👿','👹','👺','💀','☠️','👻','👽','👾','🤖','💩','😺','😸','😹','😻','👋','🤚','🖐','✋','🖖','👌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','🔥','💫','⭐','🌟','💥','❄️','🌈','🎉','🎊','🎈','🎁','🏆','🥇','⚽','🏀','🍕','🍔','🍣','☕','🍺','🚀','✈️','🌍','😴','🌙','☀️','🌊','🎵','🎶','💎','🔑','💡','📱','💻','🖥️','⌨️','🖱️','📷','🎥','📹','🎤','🎧','🎸','🎹','🎺','🥁','🎮','🕹️','👑','💍','👓','🕶️','🌸','🌺','🌻','🌹','🌷','🍀','🌿','🌱','🍁','🍂'];
+  const EMOJIS = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','🥱','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','☹️','🙁','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','😷','🤒','🤕','🤢','🤮','🤧','🥴','😇','🥳','🥺','🤠','🤡','🤥','🤫','🤭','🧐','🤓','😈','👿','👹','👺','💀','☠️','👻','👽','👾','🤖','💩','😺','😸','😹','😻','👋','🤚','🖐','✋','🖖','👌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','🔥','💫','⭐','🌟','💥','❄️','🌈','🎉','🎊','🎈','🎁','🏆','🥇','⚽','🏀','🍕','🍔','🍣','☕','🍺','🚀','✈️','🌍','🌙','☀️','🌊','🎵','🎶','💎','🔑','💡','📱','💻','🎤','🎧','🎸','🎮','👑'];
   EMOJIS.forEach(em => {
     const span = document.createElement('span');
-    span.className = 'emoji-item';
-    span.textContent = em;
+    span.className = 'emoji-item'; span.textContent = em;
     span.addEventListener('click', () => {
-      const start = msgInput.selectionStart;
-      const end = msgInput.selectionEnd;
-      msgInput.value = msgInput.value.slice(0, start) + em + msgInput.value.slice(end);
-      msgInput.selectionStart = msgInput.selectionEnd = start + em.length;
+      const s = msgInput.selectionStart, e2 = msgInput.selectionEnd;
+      msgInput.value = msgInput.value.slice(0, s) + em + msgInput.value.slice(e2);
+      msgInput.selectionStart = msgInput.selectionEnd = s + em.length;
       msgInput.focus();
     });
     emojiGrid.appendChild(span);
@@ -218,10 +308,9 @@
   emojiBtn.addEventListener('click', (e) => { e.stopPropagation(); emojiPanel.classList.toggle('open'); themePanel.classList.remove('open'); if (emojiPanel.classList.contains('open')) msgInput.focus(); });
   emojiClose.addEventListener('click', () => emojiPanel.classList.remove('open'));
 
-  // Sayfa görünürlüğü
   document.addEventListener('visibilitychange', () => {
     pageVisible = !document.hidden;
-    if (pageVisible) { unreadCount = 0; document.title = 'Laviva'; }
+    if (pageVisible) { unreadCount = 0; document.title = isClosed ? 'laviva · son' : 'Laviva'; }
   });
 
   function notifyNewMessage(msg) {
@@ -229,16 +318,13 @@
     unreadCount++;
     document.title = `(${unreadCount}) Laviva`;
     if (navigator.vibrate) navigator.vibrate(100);
-    if (Notification.permission === 'granted') {
-      new Notification('Laviva', { body: msg.nick + ': ' + (msg.audioUrl ? '🎤 Sesli mesaj' : msg.fileUrl ? '📎 Dosya' : msg.text) });
-    }
+    if (Notification.permission === 'granted') new Notification('Laviva', { body: msg.nick + ': ' + (msg.audioUrl ? '🎤 Sesli mesaj' : msg.fileUrl ? '📎 Dosya' : msg.text) });
   }
 
   function playNotifSound() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(660, ctx.currentTime);
@@ -250,17 +336,13 @@
     } catch(e) {}
   }
 
-  if ('Notification' in window && Notification.permission === 'default') {
-    setTimeout(() => Notification.requestPermission(), 3000);
-  }
+  if ('Notification' in window && Notification.permission === 'default') setTimeout(() => Notification.requestPermission(), 3000);
 
-  // Ses oynatma — durdurma + progress
   function toggleAudio(btn, url, fillEl, durationEl) {
     if (currentAudio && currentPlayBtn === btn) {
       currentAudio.pause(); currentAudio.currentTime = 0;
       currentAudio = null; currentPlayBtn = null;
-      btn.textContent = '▶';
-      if (fillEl) fillEl.style.width = '0%';
+      btn.textContent = '▶'; if (fillEl) fillEl.style.width = '0%';
       return;
     }
     if (currentAudio) {
@@ -274,20 +356,14 @@
     audio.play().catch(() => { btn.textContent = '▶'; });
     audio.ontimeupdate = () => {
       if (fillEl && audio.duration) fillEl.style.width = (audio.currentTime / audio.duration * 100) + '%';
-      if (durationEl && audio.duration) {
-        const rem = Math.ceil(audio.duration - audio.currentTime);
-        durationEl.textContent = '0:' + String(rem).padStart(2,'0');
-      }
+      if (durationEl && audio.duration) { const r = Math.ceil(audio.duration - audio.currentTime); durationEl.textContent = '0:' + String(r).padStart(2,'0'); }
     };
     audio.onended = () => {
-      btn.textContent = '▶';
-      if (fillEl) fillEl.style.width = '0%';
-      if (durationEl) durationEl.textContent = '';
+      btn.textContent = '▶'; if (fillEl) fillEl.style.width = '0%'; if (durationEl) durationEl.textContent = '';
       currentAudio = null; currentPlayBtn = null; currentFill = null;
     };
   }
 
-  // Lightbox
   lightboxClose.addEventListener('click', () => lightbox.classList.remove('open'));
   lightbox.addEventListener('click', (e) => { if (e.target === lightbox) lightbox.classList.remove('open'); });
 
@@ -301,13 +377,8 @@
     if (name === 'chat') setTimeout(scrollBottom, 100);
   }
 
-  function formatTime(iso) {
-    return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  function escapeHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
+  function formatTime(iso) { return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); }
+  function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   function addSystemMsg(text, kind) {
     const div = document.createElement('div');
@@ -316,21 +387,12 @@
     const keyword = kind === 'join' ? ' katıldı' : ' ayrıldı';
     const color = kind === 'join' ? '#86efac' : '#fca5a5';
     div.innerHTML = `<span style="color:#9ca3af">${escapeHtml(nickPart)}</span><span style="color:${color};font-weight:600">${keyword}</span>`;
-    messagesEl.appendChild(div);
-    scrollBottom();
+    messagesEl.appendChild(div); scrollBottom();
   }
 
   function getBubbleHtml(msg) {
     if (msg.deleted) return `<div class="msg-bubble deleted-text">Bu mesaj silindi</div>`;
-    if (msg.audioUrl) return `
-      <div class="audio-bubble">
-        <button class="play-btn" data-url="${escapeHtml(msg.audioUrl)}">▶</button>
-        <div class="audio-info">
-          <span class="audio-label">Sesli mesaj</span>
-          <span class="audio-duration"></span>
-          <div class="audio-progress-bar"><div class="audio-progress-fill"></div></div>
-        </div>
-      </div>`;
+    if (msg.audioUrl) return `<div class="audio-bubble"><button class="play-btn" data-url="${escapeHtml(msg.audioUrl)}">▶</button><div class="audio-info"><span class="audio-label">Sesli mesaj</span><span class="audio-duration"></span><div class="audio-progress-bar"><div class="audio-progress-fill"></div></div></div></div>`;
     if (msg.fileUrl) {
       if (msg.fileType && msg.fileType.startsWith('image/')) return `<img class="msg-img" src="${escapeHtml(msg.fileUrl)}" alt="foto" />`;
       if (msg.fileType && msg.fileType.startsWith('video/')) return `<video class="msg-video" src="${escapeHtml(msg.fileUrl)}" controls></video>`;
@@ -342,35 +404,25 @@
   function addMessage(msg, isMine) {
     const div = document.createElement('div');
     div.className = 'msg ' + (isMine ? 'mine' : 'other');
-    div.dataset.id = msg.id;
-    div.dataset.nick = msg.nick;
-    div.dataset.time = formatTime(msg.time);
-
+    div.dataset.id = msg.id; div.dataset.nick = msg.nick; div.dataset.time = formatTime(msg.time);
     const allMsgs = messagesEl.querySelectorAll('.msg');
     const prev = allMsgs[allMsgs.length - 1];
     const sameGroup = prev && prev.dataset.nick === msg.nick && prev.dataset.time === formatTime(msg.time) && !msg.deleted;
     if (sameGroup) { const pt = prev.querySelector('.msg-time'); if (pt) pt.remove(); }
-
     div.innerHTML = `
       ${sameGroup ? '' : `<span class="msg-nick">${escapeHtml(msg.nick)}</span>`}
       ${getBubbleHtml(msg)}
       <span class="msg-time">${formatTime(msg.time)}</span>
       ${isMine && !msg.deleted ? `<button class="delete-btn">✕</button>` : ''}
     `;
-
     const playBtn = div.querySelector('.play-btn');
     if (playBtn) {
       const fillEl = div.querySelector('.audio-progress-fill');
-      const durationEl = div.querySelector('.audio-duration');
-      playBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleAudio(playBtn, playBtn.dataset.url, fillEl, durationEl);
-      });
+      const durEl = div.querySelector('.audio-duration');
+      playBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleAudio(playBtn, playBtn.dataset.url, fillEl, durEl); });
     }
-
     const imgEl = div.querySelector('.msg-img');
     if (imgEl) imgEl.addEventListener('click', () => { lightboxImg.src = imgEl.src; lightbox.classList.add('open'); });
-
     if (isMine && !msg.deleted) {
       div.addEventListener('click', function(e) {
         if (e.target.classList.contains('delete-btn')) { ws.send(JSON.stringify({ type: 'delete', id: msg.id, nick })); return; }
@@ -379,21 +431,13 @@
         div.classList.toggle('show-delete');
       });
     }
-
-    messagesEl.appendChild(div);
-    scrollBottom();
-
-    if (!isMine) {
-      playNotifSound();
-      notifyNewMessage(msg);
-      if (navigator.vibrate) navigator.vibrate(80);
-    }
+    messagesEl.appendChild(div); scrollBottom();
+    if (!isMine) { playNotifSound(); notifyNewMessage(msg); if (navigator.vibrate) navigator.vibrate(80); }
   }
 
   async function toggleRecording() {
     if (isRecording) {
-      mediaRecorder.stop(); isRecording = false;
-      micBtn.classList.remove('recording'); micBtn.textContent = '🎤';
+      mediaRecorder.stop(); isRecording = false; micBtn.classList.remove('recording'); micBtn.textContent = '🎤';
     } else {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -406,16 +450,12 @@
           uploadStatus.style.display = 'block';
           const reader = new FileReader();
           reader.onload = async () => {
-            try {
-              const res = await fetch('/upload-audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audio: reader.result, nick }) });
-              if (!res.ok) throw new Error();
-            } catch(e) { alert('Ses gönderilemedi!'); }
-            finally { uploadStatus.style.display = 'none'; }
+            try { const res = await fetch('/upload-audio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audio: reader.result, nick }) }); if (!res.ok) throw new Error(); }
+            catch(e) { alert('Ses gönderilemedi!'); } finally { uploadStatus.style.display = 'none'; }
           };
           reader.readAsDataURL(blob);
         };
-        mediaRecorder.start(); isRecording = true;
-        micBtn.classList.add('recording'); micBtn.textContent = '⏹';
+        mediaRecorder.start(); isRecording = true; micBtn.classList.add('recording'); micBtn.textContent = '⏹';
       } catch(e) { alert('Mikrofon izni gerekli!'); }
     }
   }
@@ -427,11 +467,8 @@
     uploadStatus.style.display = 'block';
     const reader = new FileReader();
     reader.onload = async () => {
-      try {
-        const res = await fetch('/upload-file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: reader.result, nick, fileType: file.type, fileName: file.name }) });
-        if (!res.ok) throw new Error();
-      } catch(e) { alert('Dosya gönderilemedi!'); }
-      finally { uploadStatus.style.display = 'none'; }
+      try { const res = await fetch('/upload-file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: reader.result, nick, fileType: file.type, fileName: file.name }) }); if (!res.ok) throw new Error(); }
+      catch(e) { alert('Dosya gönderilemedi!'); } finally { uploadStatus.style.display = 'none'; }
     };
     reader.readAsDataURL(file);
   });
@@ -442,49 +479,35 @@
     lobbyWs.onmessage = (e) => {
       const data = JSON.parse(e.data);
       if (data.type === 'online') { lobbyCount.textContent = data.count; lobbyNames.textContent = data.users.length > 0 ? data.users.join(', ') : ''; }
+      if (data.type === 'shutdown') { SHUTDOWN_TIME = data.shutdownTime; updateCountdown(); }
     };
     lobbyWs.onclose = () => {};
   }
 
   function connectChat() {
+    if (isClosed) return;
     showScreen('connecting'); setStatus('yellow');
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     ws = new WebSocket(`${proto}://${location.host}`);
-    ws.onopen = () => {
-      setStatus('green');
-      ws.send(JSON.stringify({ type: 'join', nick }));
-      showScreen('chat');
-      setTimeout(() => msgInput.focus(), 300);
-    };
+    ws.onopen = () => { setStatus('green'); ws.send(JSON.stringify({ type: 'join', nick })); showScreen('chat'); setTimeout(() => msgInput.focus(), 300); };
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      if (data.type === 'history') {
-        messagesEl.innerHTML = '';
-        data.messages.forEach(msg => addMessage(msg, msg.nick === nick));
-      } else if (data.type === 'message') {
-        addMessage(data.message, data.message.nick === nick);
-      } else if (data.type === 'deleted') {
+      if (data.type === 'shutdown') { SHUTDOWN_TIME = data.shutdownTime; updateCountdown(); }
+      else if (data.type === 'history') { messagesEl.innerHTML = ''; data.messages.forEach(msg => addMessage(msg, msg.nick === nick)); }
+      else if (data.type === 'message') { addMessage(data.message, data.message.nick === nick); }
+      else if (data.type === 'deleted') {
         const el = document.querySelector(`[data-id="${data.id}"]`);
-        if (el) {
-          const n = el.querySelector('.msg-nick'); const t = el.querySelector('.msg-time');
-          el.innerHTML = `${n ? `<span class="msg-nick">${escapeHtml(n.textContent)}</span>` : ''}<div class="msg-bubble deleted-text">Bu mesaj silindi</div>${t ? `<span class="msg-time">${t.textContent}</span>` : ''}`;
-          el.classList.remove('show-delete');
-        }
-      } else if (data.type === 'online') {
-        onlineNum.textContent = data.count;
-        onlineList.textContent = data.users.join(', ');
-      } else if (data.type === 'system') {
-        addSystemMsg(data.text, data.kind);
-      } else if (data.type === 'typing') {
-        typingStatus.textContent = data.nick + ' yazıyor...';
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => { typingStatus.textContent = ''; }, 2000);
+        if (el) { const n = el.querySelector('.msg-nick'); const t = el.querySelector('.msg-time'); el.innerHTML = `${n ? `<span class="msg-nick">${escapeHtml(n.textContent)}</span>` : ''}<div class="msg-bubble deleted-text">Bu mesaj silindi</div>${t ? `<span class="msg-time">${t.textContent}</span>` : ''}`; el.classList.remove('show-delete'); }
       }
+      else if (data.type === 'online') { onlineNum.textContent = data.count; onlineList.textContent = data.users.join(', '); }
+      else if (data.type === 'system') { addSystemMsg(data.text, data.kind); }
+      else if (data.type === 'typing') { typingStatus.textContent = data.nick + ' yazıyor...'; clearTimeout(typingTimeout); typingTimeout = setTimeout(() => { typingStatus.textContent = ''; }, 2000); }
     };
-    ws.onclose = () => { setStatus('red'); setTimeout(connectChat, 2000); };
+    ws.onclose = () => { setStatus('red'); if (!isClosed) setTimeout(connectChat, 2000); };
   }
 
   function enterChat() {
+    if (isClosed) return;
     const n = nickInput.value.trim(); if (!n) return;
     nick = n; localStorage.setItem(NICK_KEY, nick);
     if (lobbyWs) { lobbyWs.close(); lobbyWs = null; }
@@ -492,18 +515,17 @@
   }
 
   function sendMessage() {
+    if (isClosed) return;
     const text = msgInput.value.trim();
     if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'chat', nick, text }));
-    msgInput.value = ''; msgInput.focus();
-    emojiPanel.classList.remove('open');
+    msgInput.value = ''; msgInput.focus(); emojiPanel.classList.remove('open');
   }
 
   msgInput.addEventListener('input', () => {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'typing', nick }));
-    clearTimeout(typingClearTimeout);
-    typingClearTimeout = setTimeout(() => {}, 2000);
+    clearTimeout(typingClearTimeout); typingClearTimeout = setTimeout(() => {}, 2000);
   });
 
   micBtn.addEventListener('click', toggleRecording);
@@ -511,13 +533,15 @@
   nickInput.addEventListener('keydown', e => { if (e.key === 'Enter') enterChat(); });
   sendBtn.addEventListener('click', sendMessage);
   msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+  if (window.visualViewport) { window.visualViewport.addEventListener('resize', () => { setTimeout(scrollBottom, 100); }); }
 
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', () => { setTimeout(scrollBottom, 100); });
+  // Başlangıç
+  if (Date.now() >= SHUTDOWN_TIME) {
+    triggerClose();
+  } else {
+    showScreen('lobby');
+    connectLobby();
   }
-
-  showScreen('lobby');
-  connectLobby();
 </script>
 </body>
 </html>
