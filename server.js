@@ -16,6 +16,9 @@ const DB_FILE = path.join(__dirname, 'messages.json');
 const MAX_MESSAGES = 200;
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+// TR saatiyle 11 Haziran Perşembe 23:59:59
+const SHUTDOWN_TIME = new Date('2026-06-11T23:59:59+03:00').getTime();
+
 function loadMessages() {
   try {
     if (fs.existsSync(DB_FILE)) return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
@@ -73,7 +76,6 @@ function uploadToCloudinary(base64Data, resourceType, callback) {
     res.on('end', () => {
       try {
         const result = JSON.parse(data);
-        console.log('Cloudinary:', JSON.stringify(result).slice(0, 200));
         if (result.secure_url) callback(null, result.secure_url);
         else callback(new Error(JSON.stringify(result)));
       } catch (e) { callback(e); }
@@ -86,18 +88,21 @@ function uploadToCloudinary(base64Data, resourceType, callback) {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Kapanma zamanını client'a ver
+app.get('/shutdown-time', (req, res) => {
+  res.json({ shutdownTime: SHUTDOWN_TIME });
+});
+
 app.post('/upload-audio', (req, res) => {
+  if (Date.now() >= SHUTDOWN_TIME) return res.status(403).json({ error: 'closed' });
   const { audio, nick } = req.body;
   if (!audio || !nick) return res.status(400).json({ error: 'missing' });
   uploadToCloudinary(audio, 'video', (err, url) => {
     if (err || !url) { console.error(err); return res.status(500).json({ error: 'failed' }); }
     const m = {
       id: Date.now() + '_' + Math.random().toString(36).slice(2),
-      nick: nick.slice(0, 30),
-      text: '🎤 Sesli mesaj',
-      audioUrl: url,
-      time: new Date().toISOString(),
-      deleted: false
+      nick: nick.slice(0, 30), text: '🎤 Sesli mesaj', audioUrl: url,
+      time: new Date().toISOString(), deleted: false
     };
     messages.push(m);
     if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
@@ -108,25 +113,20 @@ app.post('/upload-audio', (req, res) => {
 });
 
 app.post('/upload-file', (req, res) => {
+  if (Date.now() >= SHUTDOWN_TIME) return res.status(403).json({ error: 'closed' });
   const { file, nick, fileType, fileName } = req.body;
   if (!file || !nick) return res.status(400).json({ error: 'missing' });
-
   let resourceType = 'auto';
   let msgText = '📄 ' + (fileName || 'Dosya');
   if (fileType && fileType.startsWith('image/')) { resourceType = 'image'; msgText = '🖼 Fotoğraf'; }
   else if (fileType && fileType.startsWith('video/')) { resourceType = 'video'; msgText = '🎬 Video'; }
-
   uploadToCloudinary(file, resourceType, (err, url) => {
     if (err || !url) { console.error(err); return res.status(500).json({ error: 'failed' }); }
     const m = {
       id: Date.now() + '_' + Math.random().toString(36).slice(2),
-      nick: nick.slice(0, 30),
-      text: msgText,
-      fileUrl: url,
-      fileType: fileType || '',
-      fileName: fileName || 'Dosya',
-      time: new Date().toISOString(),
-      deleted: false
+      nick: nick.slice(0, 30), text: msgText, fileUrl: url,
+      fileType: fileType || '', fileName: fileName || 'Dosya',
+      time: new Date().toISOString(), deleted: false
     };
     messages.push(m);
     if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
@@ -139,8 +139,10 @@ app.post('/upload-file', (req, res) => {
 wss.on('connection', (ws) => {
   cleanOldMessages();
   ws.send(JSON.stringify({ type: 'history', messages }));
+  ws.send(JSON.stringify({ type: 'shutdown', shutdownTime: SHUTDOWN_TIME }));
 
   ws.on('message', (raw) => {
+    if (Date.now() >= SHUTDOWN_TIME) return;
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
 
@@ -152,19 +154,16 @@ wss.on('connection', (ws) => {
 
     if (msg.type === 'typing' && msg.nick) {
       wss.clients.forEach(c => {
-        if (c !== ws && c.readyState === WebSocket.OPEN) {
+        if (c !== ws && c.readyState === WebSocket.OPEN)
           c.send(JSON.stringify({ type: 'typing', nick: msg.nick.slice(0, 30) }));
-        }
       });
     }
 
     if (msg.type === 'chat' && msg.nick && msg.text) {
       const m = {
         id: Date.now() + '_' + Math.random().toString(36).slice(2),
-        nick: msg.nick.slice(0, 30),
-        text: msg.text.slice(0, 500),
-        time: new Date().toISOString(),
-        deleted: false
+        nick: msg.nick.slice(0, 30), text: msg.text.slice(0, 500),
+        time: new Date().toISOString(), deleted: false
       };
       messages.push(m);
       if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
@@ -175,10 +174,7 @@ wss.on('connection', (ws) => {
     if (msg.type === 'delete' && msg.id) {
       const m = messages.find(x => x.id === msg.id);
       if (m && m.nick === msg.nick) {
-        m.deleted = true;
-        m.text = '';
-        m.audioUrl = null;
-        m.fileUrl = null;
+        m.deleted = true; m.text = ''; m.audioUrl = null; m.fileUrl = null;
         saveMessages(messages);
         broadcast({ type: 'deleted', id: msg.id });
       }
