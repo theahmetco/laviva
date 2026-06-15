@@ -3,8 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
-const crypto = require('crypto');
+const url = require('url');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,7 +15,7 @@ const DB_FILE = path.join(__dirname, 'messages.json');
 const MAX_MESSAGES = 200;
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
-// TR saatiyle 11 Haziran Perşembe 23:59:59
+// TR saatiyle sistem bitiş süresi
 const SHUTDOWN_TIME = new Date('2030-12-31T23:59:59+03:00').getTime();
 
 function loadMessages() {
@@ -30,164 +29,133 @@ function saveMessages(msgs) {
   fs.writeFileSync(DB_FILE, JSON.stringify(msgs), 'utf8');
 }
 
+let messages = loadMessages();
+
 function cleanOldMessages() {
   const cutoff = Date.now() - MAX_AGE_MS;
   messages = messages.filter(m => new Date(m.time).getTime() > cutoff);
   saveMessages(messages);
 }
-
-let messages = loadMessages();
-cleanOldMessages();
 setInterval(cleanOldMessages, 60 * 60 * 1000);
 
+// Statik dosyaları sun (CSS, JS, Görseller)
+app.use(express.static(path.join(__dirname)));
+
+// Dinamik oda URL desteği (Örn: siteniz.com/123)
+app.get('/:room?', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// WebSocket İstemci Takibi (ws -> {nick, room})
 const clients = new Map();
 
-function broadcast(data) {
-  const str = JSON.stringify(data);
-  wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(str); });
-}
+wss.on('connection', (ws, req) => {
+  // Gelen bağlantı isteğinin URL'inden oda parametresini çek (?room=X)
+  const parameters = url.parse(req.url, true).query;
+  const room = parameters.room || 'default';
 
-function broadcastOnline() {
-  const users = Array.from(clients.values());
-  broadcast({ type: 'online', count: users.length, users });
-}
+  if (Date.now() > SHUTDOWN_TIME) {
+    ws.send(JSON.stringify({ type: 'system', text: 'Sistem kullanım süresi dolmuştur.' }));
+    ws.close();
+    return;
+  }
 
-function uploadToCloudinary(base64Data, resourceType, callback) {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
-  const timestamp = Math.floor(Date.now() / 1000);
-  const signature = crypto.createHash('sha1')
-    .update(`timestamp=${timestamp}${apiSecret}`)
-    .digest('hex');
-  const postData = `file=${encodeURIComponent(base64Data)}&timestamp=${timestamp}&api_key=${apiKey}&signature=${signature}`;
-  const options = {
-    hostname: 'api.cloudinary.com',
-    path: `/v1_1/${cloudName}/${resourceType}/upload`,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Content-Length': Buffer.byteLength(postData)
-    }
-  };
-  const req = https.request(options, (res) => {
-    let data = '';
-    res.on('data', chunk => data += chunk);
-    res.on('end', () => {
-      try {
-        const result = JSON.parse(data);
-        if (result.secure_url) callback(null, result.secure_url);
-        else callback(new Error(JSON.stringify(result)));
-      } catch (e) { callback(e); }
+  // İlk bağlantıda odayı set et, nick henüz boş
+  clients.set(ws, { nick: '', room: room });
+
+  // Sadece ilgili odadaki kullanıcılara yayın yapma fonksiyonu
+  function broadcastToRoom(roomName, data) {
+    wss.clients.forEach(c => {
+      const clientData = clients.get(c);
+      if (c.readyState === WebSocket.OPEN && clientData && clientData.room === roomName) {
+        c.send(JSON.stringify(data));
+      }
     });
-  });
-  req.on('error', callback);
-  req.write(postData);
-  req.end();
-}
+  }
 
-app.use(express.static(path.join(__dirname, 'public')));
+  // İlgili odanın anlık çevrimiçi sayısını güncelleme
+  function broadcastOnlineCount(roomName) {
+    let count = 0;
+    wss.clients.forEach(c => {
+      const clientData = clients.get(c);
+      if (clientData && clientData.room === roomName && clientData.nick) count++;
+    });
+    broadcastToRoom(roomName, { type: 'online', count });
+  }
 
-// Kapanma zamanını client'a ver
-app.get('/shutdown-time', (req, res) => {
-  res.json({ shutdownTime: SHUTDOWN_TIME });
-});
-
-app.post('/upload-audio', (req, res) => {
-  if (Date.now() >= SHUTDOWN_TIME) return res.status(403).json({ error: 'closed' });
-  const { audio, nick } = req.body;
-  if (!audio || !nick) return res.status(400).json({ error: 'missing' });
-  uploadToCloudinary(audio, 'video', (err, url) => {
-    if (err || !url) { console.error(err); return res.status(500).json({ error: 'failed' }); }
-    const m = {
-      id: Date.now() + '_' + Math.random().toString(36).slice(2),
-      nick: nick.slice(0, 30), text: '🎤 Sesli mesaj', audioUrl: url,
-      time: new Date().toISOString(), deleted: false
-    };
-    messages.push(m);
-    if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
-    saveMessages(messages);
-    broadcast({ type: 'message', message: m });
-    res.json({ ok: true });
-  });
-});
-
-app.post('/upload-file', (req, res) => {
-  if (Date.now() >= SHUTDOWN_TIME) return res.status(403).json({ error: 'closed' });
-  const { file, nick, fileType, fileName } = req.body;
-  if (!file || !nick) return res.status(400).json({ error: 'missing' });
-  let resourceType = 'auto';
-  let msgText = '📄 ' + (fileName || 'Dosya');
-  if (fileType && fileType.startsWith('image/')) { resourceType = 'image'; msgText = '🖼 Fotoğraf'; }
-  else if (fileType && fileType.startsWith('video/')) { resourceType = 'video'; msgText = '🎬 Video'; }
-  uploadToCloudinary(file, resourceType, (err, url) => {
-    if (err || !url) { console.error(err); return res.status(500).json({ error: 'failed' }); }
-    const m = {
-      id: Date.now() + '_' + Math.random().toString(36).slice(2),
-      nick: nick.slice(0, 30), text: msgText, fileUrl: url,
-      fileType: fileType || '', fileName: fileName || 'Dosya',
-      time: new Date().toISOString(), deleted: false
-    };
-    messages.push(m);
-    if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
-    saveMessages(messages);
-    broadcast({ type: 'message', message: m });
-    res.json({ ok: true });
-  });
-});
-
-wss.on('connection', (ws) => {
-  cleanOldMessages();
-  ws.send(JSON.stringify({ type: 'history', messages }));
-  ws.send(JSON.stringify({ type: 'shutdown', shutdownTime: SHUTDOWN_TIME }));
-
-  ws.on('message', (raw) => {
-    if (Date.now() >= SHUTDOWN_TIME) return;
+  ws.on('message', (message) => {
     let msg;
-    try { msg = JSON.parse(raw); } catch { return; }
+    try { msg = JSON.parse(message); } catch (e) { return; }
 
+    const clientData = clients.get(ws);
+    if (!clientData) return;
+
+    // Kullanıcı odaya giriş yaptığında
     if (msg.type === 'join' && msg.nick) {
-      clients.set(ws, msg.nick.slice(0, 30));
-      broadcastOnline();
-      broadcast({ type: 'system', text: msg.nick.slice(0, 30) + ' katıldı', kind: 'join' });
+      clientData.nick = msg.nick.slice(0, 30);
+      clients.set(ws, clientData);
+
+      broadcastOnlineCount(room);
+      broadcastToRoom(room, { type: 'system', text: clientData.nick + ' katıldı', kind: 'join' });
+
+      // Kullanıcıya sadece giriş yaptığı odaya ait geçmiş mesajları gönder
+      const roomMessages = messages.filter(m => m.room === room);
+      ws.send(JSON.stringify({ type: 'history', messages: roomMessages }));
     }
 
+    // Yazıyor... durum bildirimi (Sadece oda içi)
     if (msg.type === 'typing' && msg.nick) {
       wss.clients.forEach(c => {
-        if (c !== ws && c.readyState === WebSocket.OPEN)
+        const targetData = clients.get(c);
+        if (c !== ws && c.readyState === WebSocket.OPEN && targetData && targetData.room === room) {
           c.send(JSON.stringify({ type: 'typing', nick: msg.nick.slice(0, 30) }));
+        }
       });
     }
 
+    // Yeni mesaj gönderildiğinde
     if (msg.type === 'chat' && msg.nick && msg.text) {
       const m = {
         id: Date.now() + '_' + Math.random().toString(36).slice(2),
-        nick: msg.nick.slice(0, 30), text: msg.text.slice(0, 500),
-        time: new Date().toISOString(), deleted: false
+        room: room, // Mesajın ait olduğu oda
+        nick: msg.nick.slice(0, 30),
+        text: msg.text.slice(0, 500),
+        time: new Date().toISOString(),
+        deleted: false
       };
       messages.push(m);
       if (messages.length > MAX_MESSAGES) messages = messages.slice(-MAX_MESSAGES);
       saveMessages(messages);
-      broadcast({ type: 'message', message: m });
+      broadcastToRoom(room, { type: 'message', message: m });
     }
 
+    // Mesaj silme işlemi (Sadece oda içi)
     if (msg.type === 'delete' && msg.id) {
       const m = messages.find(x => x.id === msg.id);
-      if (m && m.nick === msg.nick) {
-        m.deleted = true; m.text = ''; m.audioUrl = null; m.fileUrl = null;
+      if (m && m.nick === msg.nick && m.room === room) {
+        m.deleted = true;
+        m.text = '';
         saveMessages(messages);
-        broadcast({ type: 'deleted', id: msg.id });
+        broadcastToRoom(room, { type: 'delete', id: msg.id });
       }
     }
   });
 
   ws.on('close', () => {
-    const nick = clients.get(ws);
-    clients.delete(ws);
-    broadcastOnline();
-    if (nick) broadcast({ type: 'system', text: nick + ' ayrıldı', kind: 'leave' });
+    const clientData = clients.get(ws);
+    if (clientData) {
+      const userNick = clientData.nick;
+      const userRoom = clientData.room;
+      clients.delete(ws);
+      if (userNick) {
+        broadcastOnlineCount(userRoom);
+        broadcastToRoom(userRoom, { type: 'system', text: userNick + ' ayrıldı', kind: 'leave' });
+      }
+    }
   });
 });
 
-const PORT = process.env.PORT || 8080;
-server.listen(PORT, () => console.log('Laviva running on port ' + PORT));
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Sunucu ${PORT} portunda çalışıyor.`);
+});
