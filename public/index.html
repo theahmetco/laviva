@@ -410,14 +410,10 @@ backBtn.addEventListener('click', () => {
   }
 });
 
-// ── LOGO UZUN BAS → ADMİN ────────────────────────────────────────────────────
-let logoHoldTimer = null;
+// ── LOGO TIKLA → ADMİN ───────────────────────────────────────────────────────
 const logoTitle = document.getElementById('logo-title');
-logoTitle.addEventListener('pointerdown', () => {
-  logoHoldTimer = setTimeout(() => { openAdminScreen(); }, 1500);
-});
-logoTitle.addEventListener('pointerup',   () => clearTimeout(logoHoldTimer));
-logoTitle.addEventListener('pointerleave',() => clearTimeout(logoHoldTimer));
+logoTitle.style.cursor = 'pointer';
+logoTitle.addEventListener('click', () => { openAdminScreen(); });
 
 function openAdminScreen() {
   showScreen('admin');
