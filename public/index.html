@@ -339,6 +339,7 @@ let isClosed       = false;
 let adminToken     = sessionStorage.getItem('laviva_admin_token') || null;
 let currentAnim    = localStorage.getItem(ANIM_KEY) || 'particles';
 let animFrame      = null;
+let reconnectTimer = null;
 
 // Ses ayarları
 let sndSettings = JSON.parse(localStorage.getItem(SND_KEY) || '{"msg":true,"join":true}');
@@ -393,14 +394,15 @@ function showScreen(name) {
   onlineCount.style.display='none';
   if (name==='room-select') { roomSelectScreen.style.display='flex'; }
   else if (name==='lobby')  { lobbyScreen.style.display='flex'; backBtn.style.display='flex'; }
-  else if (name==='connecting') { connectingScreen.style.display='flex'; }
+  else if (name==='connecting') { connectingScreen.style.display='flex'; backBtn.style.display='flex'; }
   else if (name==='chat')   { chatScreen.style.display='flex'; backBtn.style.display='flex'; onlineCount.style.display='flex'; setTimeout(scrollBottom,100); }
   else if (name==='closed') { closedScreen.style.display='flex'; }
   else if (name==='admin')  { adminScreen.style.display='flex'; }
 }
 
 backBtn.addEventListener('click', () => {
-  if (chatScreen.style.display==='flex') {
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer=null; }
+  if (chatScreen.style.display==='flex' || connectingScreen.style.display==='flex') {
     if (ws) { ws.onclose=null; ws.close(); ws=null; }
     showScreen('room-select'); loadRooms();
   } else if (lobbyScreen.style.display==='flex') {
@@ -478,8 +480,10 @@ document.querySelectorAll('.anim-btn').forEach(btn => {
     btn.classList.add('active');
     startAnim(currentAnim);
   });
-  if (btn.dataset.anim === currentAnim) btn.classList.add('active');
 });
+document.querySelectorAll('.anim-btn').forEach(b => b.classList.remove('active'));
+const initialAnimBtn = document.querySelector(`.anim-btn[data-anim="${currentAnim}"]`);
+if (initialAnimBtn) initialAnimBtn.classList.add('active');
 
 // ── CANVAS ANİMASYONLARI ─────────────────────────────────────────────────────
 const canvas = document.getElementById('bg-canvas');
@@ -617,6 +621,7 @@ async function tryAutoJoin(roomId, tryNick, pass) {
 // ── BAĞLANTI ──────────────────────────────────────────────────────────────────
 function connectChat(roomId, password) {
   if (isClosed) return;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer=null; }
   showScreen('connecting'); setStatus('yellow');
   const proto = location.protocol==='https:'?'wss':'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
@@ -632,7 +637,7 @@ function connectChat(roomId, password) {
       roomLabel.textContent = selectedRoomName.textContent;
       showScreen('chat'); setTimeout(()=>msgInput.focus(),300);
       messagesEl.innerHTML='';
-      data.messages.forEach(m=>addMessage(m,m.nick===nick));
+      data.messages.forEach(m=>addMessage(m,m.nick===nick,true));
       // Şifreyi kaydet (başarılı giriş)
       savedPasses[roomId]=password;
       localStorage.setItem(PASS_KEY,JSON.stringify(savedPasses));
@@ -648,7 +653,12 @@ function connectChat(roomId, password) {
     else if (data.type==='system')    { addSystemMsg(data.text,data.kind); }
     else if (data.type==='typing')    { typingStatus.textContent=data.nick+' yazıyor...'; clearTimeout(typingTimeout); typingTimeout=setTimeout(()=>{typingStatus.textContent='';},2000); }
   };
-  ws.onclose = () => { setStatus('red'); if(chatScreen.style.display==='flex'&&!isClosed) setTimeout(()=>connectChat(roomId,password),2000); };
+  ws.onclose = () => {
+    setStatus('red');
+    if ((chatScreen.style.display==='flex' || connectingScreen.style.display==='flex') && !isClosed) {
+      reconnectTimer = setTimeout(()=>connectChat(roomId,password),2000);
+    }
+  };
 }
 
 function enterChat() {
@@ -787,7 +797,7 @@ function getBubbleHtml(msg){
   return`<div class="msg-bubble">${escapeHtml(msg.text)}</div>`;
 }
 
-function addMessage(msg,isMine){
+function addMessage(msg,isMine,isHistory){
   const div=document.createElement('div');
   div.className='msg '+(isMine?'mine':'other');
   div.dataset.id=msg.id;div.dataset.nick=msg.nick;div.dataset.time=formatTime(msg.time);
@@ -795,21 +805,25 @@ function addMessage(msg,isMine){
   const prev=allMsgs[allMsgs.length-1];
   const sameGroup=prev&&prev.dataset.nick===msg.nick&&prev.dataset.time===formatTime(msg.time)&&!msg.deleted;
   if(sameGroup){const pt=prev.querySelector('.msg-time');if(pt)pt.remove();}
+  // Fotoğraf/video/ses gibi medya mesajları: silme butonu tıklamaya gerek kalmadan görünsün
+  const isMedia=!!(msg.audioUrl||(msg.fileUrl&&(msg.fileType?.startsWith('image/')||msg.fileType?.startsWith('video/'))));
+  if(isMine&&!msg.deleted&&isMedia) div.classList.add('show-delete');
   div.innerHTML=`${sameGroup?'':`<span class="msg-nick">${escapeHtml(msg.nick)}</span>`}${getBubbleHtml(msg)}<span class="msg-time">${formatTime(msg.time)}</span>${isMine&&!msg.deleted?`<button class="delete-btn">✕</button>`:''}`;
   const playBtn=div.querySelector('.play-btn');
   if(playBtn){const fillEl=div.querySelector('.audio-progress-fill'),durEl=div.querySelector('.audio-duration');playBtn.addEventListener('click',e=>{e.stopPropagation();toggleAudio(playBtn,playBtn.dataset.url,fillEl,durEl);});}
   const imgEl=div.querySelector('.msg-img');
   if(imgEl)imgEl.addEventListener('click',()=>{lightboxImg.src=imgEl.src;lightbox.classList.add('open');});
-  if(isMine&&!msg.deleted){
+  const delBtn=div.querySelector('.delete-btn');
+  if(delBtn)delBtn.addEventListener('click',e=>{e.stopPropagation();ws.send(JSON.stringify({type:'delete',id:msg.id,nick}));});
+  if(isMine&&!msg.deleted&&!isMedia){
     div.addEventListener('click',function(e){
-      if(e.target.classList.contains('delete-btn')){ws.send(JSON.stringify({type:'delete',id:msg.id,nick}));return;}
-      if(['play-btn','msg-img','msg-video'].some(c=>e.target.classList.contains(c)))return;
+      if(e.target.classList.contains('delete-btn'))return;
       document.querySelectorAll('.msg.mine').forEach(m=>m.classList.remove('show-delete'));
       div.classList.toggle('show-delete');
     });
   }
   messagesEl.appendChild(div);scrollBottom();
-  if(!isMine){playNotifSound();notifyNewMessage(msg);if(navigator.vibrate)navigator.vibrate(80);}
+  if(!isMine&&!isHistory){playNotifSound();notifyNewMessage(msg);if(navigator.vibrate)navigator.vibrate(80);}
 }
 
 if(window.visualViewport)window.visualViewport.addEventListener('resize',()=>setTimeout(scrollBottom,100));
